@@ -15,9 +15,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors, radius, spacing } from "../../screens/theme";
 
 // ---------------------------------------------------------------------------
-// This screen is a UI-only mock of the 4-step "Create Quiz" wizard. All state
+// This screen is a UI-only mock of the 3-step "Create Quiz" wizard. All state
 // lives in local component state — nothing is persisted or wired to a real
 // backend. Swap DECKS / CARDS_BY_DECK for real data when you have it.
+//
+// The old "Select Questions" (per-card checklist) step has been removed —
+// the number of questions typed in Quiz Settings now determines how many
+// cards are pulled from the deck automatically.
 // ---------------------------------------------------------------------------
 
 type DeckOption = {
@@ -58,9 +62,12 @@ const QUESTION_TYPES = [
   { key: "short_answer", label: "Short Answer" },
 ] as const;
 
-const QUESTION_COUNTS = [5, 10, 15, 20] as const;
+const DEFAULT_QUESTION_COUNT = 10;
+const MIN_QUESTIONS = 1;
+const MAX_QUESTIONS = 100;
 
-const STEP_TITLES = ["Choose a deck", "Quiz Settings", "Select Questions", "Review & Create"];
+const STEP_TITLES = ["Choose a deck", "Quiz Settings", "Review & Create"];
+const TOTAL_STEPS = STEP_TITLES.length;
 
 export default function CreateQuizScreen() {
   // Arriving from a deck's "Quiz" button passes ?deckId=... — preselect that
@@ -68,7 +75,7 @@ export default function CreateQuizScreen() {
   const params = useLocalSearchParams<{ deckId?: string }>();
   const preselectedDeckId = params.deckId && DECKS.some((d) => d.id === params.deckId) ? params.deckId : null;
 
-  const [step, setStep] = useState(preselectedDeckId ? 1 : 0); // 0-3
+  const [step, setStep] = useState(preselectedDeckId ? 1 : 0); // 0-2
 
   // Step 1 — deck
   const [deckQuery, setDeckQuery] = useState("");
@@ -76,13 +83,10 @@ export default function CreateQuizScreen() {
 
   // Step 2 — settings
   const [title, setTitle] = useState("");
-  const [numQuestions, setNumQuestions] = useState<number>(10);
+  const [numQuestionsInput, setNumQuestionsInput] = useState<string>(String(DEFAULT_QUESTION_COUNT));
   const [types, setTypes] = useState<Set<string>>(new Set(["multiple_choice"]));
   const [randomize, setRandomize] = useState(true);
   const [showAnswers, setShowAnswers] = useState(true);
-
-  // Step 3 — questions
-  const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set());
 
   const deck = useMemo(() => DECKS.find((d) => d.id === deckId) ?? null, [deckId]);
   const cards = deckId ? CARDS_BY_DECK[deckId] ?? [] : [];
@@ -91,6 +95,32 @@ export default function CreateQuizScreen() {
     return q ? DECKS.filter((d) => d.title.toLowerCase().includes(q)) : DECKS;
   }, [deckQuery]);
 
+  // Parsed, clamped numeric value derived from the raw text input. Falls
+  // back to the default while the field is empty or mid-edit.
+  const numQuestions = useMemo(() => {
+    const parsed = parseInt(numQuestionsInput, 10);
+    if (Number.isNaN(parsed)) return DEFAULT_QUESTION_COUNT;
+    return Math.min(MAX_QUESTIONS, Math.max(MIN_QUESTIONS, parsed));
+  }, [numQuestionsInput]);
+
+  const isNumQuestionsValid = numQuestionsInput.trim().length > 0 && !Number.isNaN(parseInt(numQuestionsInput, 10));
+
+  // How many questions the quiz will actually have, capped by how many
+  // cards the deck has available.
+  const effectiveQuestionCount = deck ? Math.min(numQuestions, deck.cardCount || numQuestions) : numQuestions;
+
+  const handleNumQuestionsChange = (text: string) => {
+    // Only allow digits so the field can't hold garbage input.
+    const digitsOnly = text.replace(/[^0-9]/g, "");
+    setNumQuestionsInput(digitsOnly);
+  };
+
+  const handleNumQuestionsBlur = () => {
+    // On blur, normalize the field to the clamped numeric value so the user
+    // sees the value that will actually be used.
+    setNumQuestionsInput(String(numQuestions));
+  };
+
   const toggleType = (key: string) =>
     setTypes((prev) => {
       const next = new Set(prev);
@@ -98,33 +128,22 @@ export default function CreateQuizScreen() {
       return next;
     });
 
-  const toggleCard = (id: string) =>
-    setSelectedCardIds((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-
-  const toggleSelectAll = () =>
-    setSelectedCardIds((prev) => (prev.size === cards.length ? new Set() : new Set(cards.map((c) => c.id))));
-
   const canGoNext =
     (step === 0 && deckId !== null) ||
-    (step === 1 && title.trim().length > 0 && types.size > 0) ||
-    (step === 2 && selectedCardIds.size > 0) ||
-    step === 3;
+    (step === 1 && title.trim().length > 0 && types.size > 0 && isNumQuestionsValid) ||
+    step === 2;
 
   const goBack = () => (step === 0 ? router.back() : setStep((s) => s - 1));
 
   const goNext = () => {
     if (!canGoNext) return;
-    if (step < 3) {
+    if (step < TOTAL_STEPS - 1) {
       setStep((s) => s + 1);
     } else {
       // "Create Quiz" — hand off to the quiz-taking mock.
       router.push({
         pathname: "/quiz/take" as any,
-        params: { title: title || `${deck?.title ?? "Quiz"} Quiz`, total: String(Math.min(numQuestions, cards.length || numQuestions)) },
+        params: { title: title || `${deck?.title ?? "Quiz"} Quiz`, total: String(effectiveQuestionCount) },
       });
     }
   };
@@ -141,9 +160,9 @@ export default function CreateQuizScreen() {
           <Ionicons name="chevron-back" size={24} color={colors.ink} />
         </Pressable>
         <View style={styles.progressTrack}>
-          <View style={[styles.progressFill, { width: `${((step + 1) / 4) * 100}%` }]} />
+          <View style={[styles.progressFill, { width: `${((step + 1) / TOTAL_STEPS) * 100}%` }]} />
         </View>
-        <Text style={styles.stepCount}>{step + 1}/4</Text>
+        <Text style={styles.stepCount}>{step + 1}/{TOTAL_STEPS}</Text>
       </View>
 
       <ScrollView
@@ -213,19 +232,21 @@ export default function CreateQuizScreen() {
             />
 
             <Text style={styles.label}>Number of Questions</Text>
-            <View style={styles.chipsRow}>
-              {QUESTION_COUNTS.map((n) => {
-                const selected = n === numQuestions;
-                return (
-                  <Pressable
-                    key={n}
-                    onPress={() => setNumQuestions(n)}
-                    style={[styles.chip, selected && styles.chipSelected]}
-                  >
-                    <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{n}</Text>
-                  </Pressable>
-                );
-              })}
+            <View style={styles.numberInputRow}>
+              <TextInput
+                style={[styles.input, styles.numberInput, !isNumQuestionsValid && styles.inputError]}
+                placeholder={String(DEFAULT_QUESTION_COUNT)}
+                placeholderTextColor="#9CA3AF"
+                value={numQuestionsInput}
+                onChangeText={handleNumQuestionsChange}
+                onBlur={handleNumQuestionsBlur}
+                keyboardType="number-pad"
+                maxLength={3}
+              />
+              <Text style={styles.numberInputHint}>
+                {MIN_QUESTIONS}–{MAX_QUESTIONS} questions
+                {deck ? ` · deck has ${deck.cardCount}` : ""}
+              </Text>
             </View>
 
             <Text style={styles.label}>Question Type</Text>
@@ -262,40 +283,7 @@ export default function CreateQuizScreen() {
           </>
         )}
 
-        {step === 2 && (
-          <>
-            <Text style={styles.title}>Select Questions</Text>
-            <Text style={styles.subtitle}>Choose which cards to include in your quiz.</Text>
-
-            <Pressable onPress={toggleSelectAll} style={styles.checkRow}>
-              <Ionicons
-                name={selectedCardIds.size === cards.length && cards.length > 0 ? "checkbox" : "square-outline"}
-                size={22}
-                color={selectedCardIds.size > 0 ? colors.primary : "#C7CBD9"}
-              />
-              <Text style={styles.checkLabel}>Select All</Text>
-              <Text style={styles.selectCount}>
-                {selectedCardIds.size}/{cards.length} selected
-              </Text>
-            </Pressable>
-
-            {cards.map((card) => {
-              const checked = selectedCardIds.has(card.id);
-              return (
-                <Pressable key={card.id} onPress={() => toggleCard(card.id)} style={styles.checkRow}>
-                  <Ionicons
-                    name={checked ? "checkbox" : "square-outline"}
-                    size={22}
-                    color={checked ? colors.primary : "#C7CBD9"}
-                  />
-                  <Text style={styles.checkLabel}>{card.front}</Text>
-                </Pressable>
-              );
-            })}
-          </>
-        )}
-
-        {step === 3 && deck && (
+        {step === 2 && deck && (
           <>
             <Text style={styles.title}>Review & Create</Text>
             <Text style={styles.subtitle}>Check your quiz settings.</Text>
@@ -307,13 +295,13 @@ export default function CreateQuizScreen() {
               <View style={styles.rowText}>
                 <Text style={styles.rowTitle}>{title || `${deck.title} Quiz`}</Text>
                 <Text style={styles.rowMeta}>
-                  {Math.min(numQuestions, selectedCardIds.size)} Questions · {typeLabel || "No type selected"}
+                  {effectiveQuestionCount} Questions · {typeLabel || "No type selected"}
                 </Text>
               </View>
             </View>
 
             <SummaryRow label="Deck" value={deck.title} />
-            <SummaryRow label="Questions" value={String(Math.min(numQuestions, selectedCardIds.size))} />
+            <SummaryRow label="Questions" value={String(effectiveQuestionCount)} />
             <SummaryRow label="Type" value={typeLabel || "—"} />
             <SummaryRow label="Randomize" value={randomize ? "Yes" : "No"} />
             <SummaryRow label="Show Answers" value={showAnswers ? "Yes" : "No"} />
@@ -331,8 +319,8 @@ export default function CreateQuizScreen() {
           disabled={!canGoNext}
           style={[styles.footerButton, styles.nextButton, !canGoNext && styles.nextButtonDisabled]}
         >
-          <Text style={styles.nextButtonText}>{step === 3 ? "Create Quiz" : "Next"}</Text>
-          {step < 3 && <Ionicons name="arrow-forward" size={16} color={colors.background} />}
+          <Text style={styles.nextButtonText}>{step === TOTAL_STEPS - 1 ? "Create Quiz" : "Next"}</Text>
+          {step < TOTAL_STEPS - 1 && <Ionicons name="arrow-forward" size={16} color={colors.background} />}
         </Pressable>
       </View>
     </SafeAreaView>
@@ -473,30 +461,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.ink,
   },
-  chipsRow: {
+  inputError: {
+    borderColor: "#E5484D",
+  },
+  numberInputRow: {
     flexDirection: "row",
-    gap: 10,
-  },
-  chip: {
-    width: 56,
-    height: 40,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
     alignItems: "center",
-    justifyContent: "center",
+    gap: 12,
   },
-  chipSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryTint,
-  },
-  chipText: {
-    fontSize: 14,
+  numberInput: {
+    width: 90,
+    textAlign: "center",
     fontWeight: "700",
-    color: colors.ink,
   },
-  chipTextSelected: {
-    color: colors.primary,
+  numberInputHint: {
+    fontSize: 12,
+    color: colors.body,
+    flexShrink: 1,
   },
   checkRow: {
     flexDirection: "row",
@@ -508,10 +489,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: colors.ink,
-  },
-  selectCount: {
-    fontSize: 12,
-    color: colors.body,
   },
   toggleRow: {
     flexDirection: "row",
@@ -528,7 +505,7 @@ const styles = StyleSheet.create({
     color: colors.ink,
   },
 
-  // Review (step 4)
+  // Review (step 3)
   summaryCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -594,4 +571,4 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: colors.background,
   },
-});
+});  
