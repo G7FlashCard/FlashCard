@@ -5,6 +5,13 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
+    "scheme": "flashcard",
+    "plugins": [
+      "expo-router",
+      "expo-status-bar",
+      "expo-asset",
+      "expo-font"
+    ],
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true
