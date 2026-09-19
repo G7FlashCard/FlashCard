@@ -2,11 +2,6 @@ import { useSyncExternalStore } from "react";
 
 import { adjustCardCount } from "./deckStore";
 
-// ---------------------------------------------------------------------------
-// Same tiny module-level store pattern as deckStore.ts, so every screen sees
-// the same cards without a provider. Swap for real storage/backend later.
-// ---------------------------------------------------------------------------
-
 export type Card = {
   id: string;
   deckId: string;
@@ -53,7 +48,7 @@ export function addCard(deckId: string, input: CardInput): Card {
     ...input,
   };
   setCards([...cards, card]);
-  adjustCardCount(deckId, 1); // keep deck.cardCount in sync
+  adjustCardCount(deckId, 1); 
   return card;
 }
 
