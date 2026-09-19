@@ -42,9 +42,7 @@ export default function DeckScreen() {
     );
   }
 
-  // ----- Actions -----------------------------------------------------------
 
-  // Placeholder for screens that aren't built yet.
   const comingSoon = (feature: string) =>
     Alert.alert(feature, "This part isn't built yet.");
 
@@ -87,14 +85,10 @@ export default function DeckScreen() {
     setEditOpen(false);
   };
 
-  // Close the sheet first, then act. Opening an Alert or another Modal while a
-  // Modal is still closing can silently fail on iOS, so give it a moment.
   const afterSheet = (action: () => void) => {
     setSheet(null);
     setTimeout(action, 350);
   };
-
-  // ----- Sheet contents (mockup screens 4 and 12) ---------------------------
 
   const editItems: SheetItem[] = [
     { icon: "create-outline", label: "Edit Deck Details", onPress: () => setEditOpen(true) },
@@ -209,9 +203,6 @@ export default function DeckScreen() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Pieces
-// ---------------------------------------------------------------------------
 
 function IconButton({
   icon,
@@ -350,9 +341,6 @@ function OptionsSheet({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
   container: {
