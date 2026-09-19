@@ -1,551 +1,614 @@
-import { useState } from "react";
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { Stack, router, useLocalSearchParams } from "expo-router";
+import { useMemo, useState } from "react";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
-import type { IconName } from "../../screens/deckData";
-import { DeckFormModal } from "../../screens/DeckFormModal";
-import { DeckInput, deleteDeck, duplicateDeck, updateDeck, useDeck } from "../../screens/deckStore";
 import { colors, radius, spacing } from "../../screens/theme";
 
-const DANGER = "#E5484D";
+// ---------------------------------------------------------------------------
+// This screen is a UI-only mock of the 4-step "Create Quiz" wizard. All state
+// lives in local component state — nothing is persisted or wired to a real
+// backend. Swap DECKS / CARDS_BY_DECK for real data when you have it.
+// ---------------------------------------------------------------------------
 
-type SheetKey = "edit" | "more" | null;
-
-type SheetItem = {
-  icon: IconName;
-  label: string;
-  onPress: () => void;
-  destructive?: boolean;
+type DeckOption = {
+  id: string;
+  title: string;
+  cardCount: number;
+  icon: keyof typeof Ionicons.glyphMap;
+  tint: string;
+  color: string;
 };
 
-export default function DeckScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const deck = useDeck(id);
+const DECKS: DeckOption[] = [
+  { id: "1", title: "Biology", cardCount: 24, icon: "leaf-outline", tint: "#E7FBEE", color: "#22C55E" },
+  { id: "2", title: "Math Formulas", cardCount: 28, icon: "calculator-outline", tint: "#FDECEC", color: "#EF4444" },
+  { id: "3", title: "English Vocabulary", cardCount: 50, icon: "book-outline", tint: "#EAF2FE", color: "#3B82F6" },
+  { id: "4", title: "History", cardCount: 40, icon: "library-outline", tint: "#FDECEC", color: "#EF4444" },
+  { id: "5", title: "Science", cardCount: 32, icon: "flask-outline", tint: "#EAF2FE", color: "#3B82F6" },
+];
 
-  const [sheet, setSheet] = useState<SheetKey>(null);
-  const [editOpen, setEditOpen] = useState(false);
+const CARDS_BY_DECK: Record<string, { id: string; front: string }[]> = {
+  "1": [
+    { id: "c1", front: "What is a cell?" },
+    { id: "c2", front: "Parts of a cell" },
+    { id: "c3", front: "Cell membrane function" },
+    { id: "c4", front: "Definition of cytoplasm" },
+    { id: "c5", front: "What is a nucleus?" },
+    { id: "c6", front: "Types of cells" },
+    { id: "c7", front: "Cell transport" },
+    { id: "c8", front: "Mitochondria function" },
+    { id: "c9", front: "What is DNA?" },
+    { id: "c10", front: "Photosynthesis basics" },
+  ],
+};
 
-  if (!deck) {
-    return (
-      <SafeAreaView style={styles.container} edges={["top"]}>
-        <Stack.Screen options={{ headerShown: false }} />
-        <View style={styles.topBar}>
-          <IconButton icon="chevron-back" label="Back" onPress={() => router.back()} />
-        </View>
-        <View style={styles.missing}>
-          <Text style={styles.missingTitle}>Deck not found</Text>
-          <Text style={styles.missingBody}>It may have been deleted.</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+const QUESTION_TYPES = [
+  { key: "multiple_choice", label: "Multiple Choice" },
+  { key: "true_false", label: "True or False" },
+  { key: "short_answer", label: "Short Answer" },
+] as const;
 
+const DEFAULT_QUESTION_COUNT = 10;
+const MIN_QUESTIONS = 1;
+const MAX_QUESTIONS = 100;
 
-  const comingSoon = (feature: string) =>
-    Alert.alert(feature, "This part isn't built yet.");
+const STEP_TITLES = ["Choose a deck", "Quiz Settings", "Select Questions", "Review & Create"];
 
-  // Gate any card-dependent feature behind having at least one card, then
-  // run the real action instead of always falling back to "coming soon".
-  const needsCards = (feature: string, onReady: () => void) =>
-    deck.cardCount === 0
-      ? Alert.alert("No cards yet", "Add cards to this deck before you start.")
-      : onReady();
+export default function CreateQuizScreen() {
+  // Arriving from a deck's "Quiz" button passes ?deckId=... — preselect that
+  // deck and skip straight to the settings step.
+  const params = useLocalSearchParams<{ deckId?: string }>();
+  const preselectedDeckId = params.deckId && DECKS.some((d) => d.id === params.deckId) ? params.deckId : null;
 
-  const goToAddCards = () => router.push(`/deck/${deck.id}/add-cards` as any);
-  const goToStudy = () => router.push(`/deck/${deck.id}/study` as any);
-  const goToQuiz = () =>
-    router.push({ pathname: "/quiz/create" as any, params: { deckId: deck.id } });
+  const [step, setStep] = useState(preselectedDeckId ? 1 : 0); // 0-3
 
-  const confirmDelete = () =>
-    Alert.alert(
-      "Delete deck?",
-      `"${deck.title}" and its ${deck.cardCount} cards will be permanently deleted.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => {
-            deleteDeck(deck.id);
-            router.back();
-          },
-        },
-      ]
-    );
+  // Step 1 — deck
+  const [deckQuery, setDeckQuery] = useState("");
+  const [deckId, setDeckId] = useState<string | null>(preselectedDeckId);
 
-  const copyDeck = () => {
-    const copy = duplicateDeck(deck.id);
-    if (!copy) return;
-    Alert.alert("Deck copied", `"${copy.title}" was added to your decks.`, [
-      { text: "Done", style: "cancel" },
-      { text: "Open copy", onPress: () => router.replace(`/deck/${copy.id}` as any) },
-    ]);
+  // Step 2 — settings
+  const [title, setTitle] = useState("");
+  const [numQuestionsInput, setNumQuestionsInput] = useState<string>(String(DEFAULT_QUESTION_COUNT));
+  const [types, setTypes] = useState<Set<string>>(new Set(["multiple_choice"]));
+  const [randomize, setRandomize] = useState(true);
+  const [showAnswers, setShowAnswers] = useState(true);
+
+  // Step 3 — questions
+  const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set());
+
+  const deck = useMemo(() => DECKS.find((d) => d.id === deckId) ?? null, [deckId]);
+  const cards = deckId ? CARDS_BY_DECK[deckId] ?? [] : [];
+  const filteredDecks = useMemo(() => {
+    const q = deckQuery.trim().toLowerCase();
+    return q ? DECKS.filter((d) => d.title.toLowerCase().includes(q)) : DECKS;
+  }, [deckQuery]);
+
+  // Parsed, clamped numeric value derived from the raw text input. Falls
+  // back to the default while the field is empty or mid-edit.
+  const numQuestions = useMemo(() => {
+    const parsed = parseInt(numQuestionsInput, 10);
+    if (Number.isNaN(parsed)) return DEFAULT_QUESTION_COUNT;
+    return Math.min(MAX_QUESTIONS, Math.max(MIN_QUESTIONS, parsed));
+  }, [numQuestionsInput]);
+
+  const isNumQuestionsValid = numQuestionsInput.trim().length > 0 && !Number.isNaN(parseInt(numQuestionsInput, 10));
+
+  const handleNumQuestionsChange = (text: string) => {
+    // Only allow digits so the field can't hold garbage input.
+    const digitsOnly = text.replace(/[^0-9]/g, "");
+    setNumQuestionsInput(digitsOnly);
   };
 
-  const saveEdits = (input: DeckInput) => {
-    updateDeck(deck.id, input);
-    setEditOpen(false);
+  const handleNumQuestionsBlur = () => {
+    // On blur, normalize the field to the clamped numeric value so the user
+    // sees the value that will actually be used.
+    setNumQuestionsInput(String(numQuestions));
   };
 
-  const afterSheet = (action: () => void) => {
-    setSheet(null);
-    setTimeout(action, 350);
+  const toggleType = (key: string) =>
+    setTypes((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+
+  const toggleCard = (id: string) =>
+    setSelectedCardIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+  const toggleSelectAll = () =>
+    setSelectedCardIds((prev) => (prev.size === cards.length ? new Set() : new Set(cards.map((c) => c.id))));
+
+  const canGoNext =
+    (step === 0 && deckId !== null) ||
+    (step === 1 && title.trim().length > 0 && types.size > 0 && isNumQuestionsValid) ||
+    (step === 2 && selectedCardIds.size > 0) ||
+    step === 3;
+
+  const goBack = () => (step === 0 ? router.back() : setStep((s) => s - 1));
+
+  const goNext = () => {
+    if (!canGoNext) return;
+    if (step < 3) {
+      setStep((s) => s + 1);
+    } else {
+      // "Create Quiz" — hand off to the quiz-taking mock.
+      router.push({
+        pathname: "/quiz/take" as any,
+        params: { title: title || `${deck?.title ?? "Quiz"} Quiz`, total: String(Math.min(numQuestions, cards.length || numQuestions)) },
+      });
+    }
   };
 
-  const editItems: SheetItem[] = [
-    { icon: "create-outline", label: "Edit Deck Details", onPress: () => setEditOpen(true) },
-    { icon: "add", label: "Add Cards", onPress: goToAddCards },
-    { icon: "reorder-three-outline", label: "Reorder Cards", onPress: () => needsCards("Reorder Cards", () => comingSoon("Reorder Cards")) },
-    { icon: "copy-outline", label: "Duplicate Deck", onPress: copyDeck },
-    { icon: "people-outline", label: "Share Deck", onPress: () => comingSoon("Share Deck") },
-    { icon: "trash-outline", label: "Delete Deck", onPress: confirmDelete, destructive: true },
-  ];
-
-  const moreItems: SheetItem[] = [
-    { icon: "download-outline", label: "Export Deck", onPress: () => comingSoon("Export Deck") },
-    { icon: "print-outline", label: "Print Deck", onPress: () => comingSoon("Print Deck") },
-    { icon: "copy-outline", label: "Make a Copy", onPress: copyDeck },
-    { icon: "folder-outline", label: "Move to Folder", onPress: () => comingSoon("Move to Folder") },
-    { icon: "trash-outline", label: "Delete Deck", onPress: confirmDelete, destructive: true },
-  ];
-
-  const cardLabel = `${deck.cardCount} ${deck.cardCount === 1 ? "card" : "cards"}`;
+  const typeLabel = QUESTION_TYPES.filter((t) => types.has(t.key))
+    .map((t) => t.label)
+    .join(", ");
 
   return (
-    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
-      <Stack.Screen options={{ headerShown: false }} />
-
-      {/* Top bar */}
+    <SafeAreaView style={styles.container} edges={["top"]}>
+      {/* Top bar: back + progress + step count */}
       <View style={styles.topBar}>
-        <IconButton icon="chevron-back" label="Back" onPress={() => router.back()} />
-        <IconButton icon="ellipsis-horizontal" label="More options" onPress={() => setSheet("more")} />
+        <Pressable onPress={goBack} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
+          <Ionicons name="chevron-back" size={24} color={colors.ink} />
+        </Pressable>
+        <View style={styles.progressTrack}>
+          <View style={[styles.progressFill, { width: `${((step + 1) / 4) * 100}%` }]} />
+        </View>
+        <Text style={styles.stepCount}>{step + 1}/4</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Hero */}
-        <View style={styles.hero}>
-          <View style={[styles.coverTile, { backgroundColor: deck.tint }]}>
-            <Ionicons name={deck.icon} size={40} color={deck.color} />
-          </View>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {step === 0 && (
+          <>
+            <Text style={styles.title}>Create a Quiz</Text>
+            <Text style={styles.subtitle}>Choose a deck for your quiz.</Text>
 
-          <View style={styles.titleLine}>
-            <Text style={styles.deckTitle} numberOfLines={2}>
-              {deck.title}
-            </Text>
-            {deck.isPrivate && (
-              <Ionicons name="lock-closed" size={16} color={colors.body} accessibilityLabel="Private deck" />
-            )}
-          </View>
-
-          {!!deck.description && <Text style={styles.deckDescription}>{deck.description}</Text>}
-
-          {!!deck.subject && (
-            <View style={[styles.subjectPill, { backgroundColor: deck.tint }]}>
-              <Text style={[styles.subjectText, { color: deck.color }]}>{deck.subject}</Text>
+            <View style={styles.search}>
+              <Ionicons name="search-outline" size={18} color={colors.body} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search your decks..."
+                placeholderTextColor="#9CA3AF"
+                value={deckQuery}
+                onChangeText={setDeckQuery}
+              />
             </View>
-          )}
-        </View>
 
-        {/* Quick actions */}
-        <View style={styles.actions}>
-          <ActionButton
-            icon="play"
-            label="Study"
-            primary
-            onPress={() => needsCards("Study", goToStudy)}
-          />
-          <ActionButton
-            icon="help"
-            label="Quiz"
-            onPress={() => needsCards("Quiz", goToQuiz)}
-          />
-          <ActionButton icon="pencil" label="Edit" onPress={() => setSheet("edit")} />
-          <ActionButton icon="ellipsis-horizontal" label="More" onPress={() => setSheet("more")} />
-        </View>
+            {filteredDecks.map((d) => {
+              const selected = d.id === deckId;
+              return (
+                <Pressable
+                  key={d.id}
+                  onPress={() => setDeckId(d.id)}
+                  style={({ pressed }) => [
+                    styles.row,
+                    selected && styles.rowSelected,
+                    pressed && styles.rowPressed,
+                  ]}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected }}
+                >
+                  <View style={[styles.iconTile, { backgroundColor: d.tint }]}>
+                    <Ionicons name={d.icon} size={22} color={d.color} />
+                  </View>
+                  <View style={styles.rowText}>
+                    <Text style={styles.rowTitle}>{d.title}</Text>
+                    <Text style={styles.rowMeta}>{d.cardCount} cards</Text>
+                  </View>
+                  <Ionicons
+                    name={selected ? "radio-button-on" : "radio-button-off"}
+                    size={22}
+                    color={selected ? colors.primary : "#C7CBD9"}
+                  />
+                </Pressable>
+              );
+            })}
+          </>
+        )}
 
-        {/* Rows */}
-        <View style={styles.rows}>
-          <InfoRow
-            icon="layers-outline"
-            label="Flashcards"
-            sub={cardLabel}
-            onPress={() => (deck.cardCount === 0 ? goToAddCards() : goToStudy())}
-          />
-          <InfoRow icon="bar-chart-outline" label="Quiz Results" onPress={() => comingSoon("Quiz Results")} />
-          <InfoRow icon="stats-chart-outline" label="Statistics" onPress={() => comingSoon("Statistics")} />
-          <InfoRow icon="people-outline" label="Share Deck" onPress={() => comingSoon("Share Deck")} />
-          <InfoRow icon="trash-outline" label="Delete Deck" destructive onPress={confirmDelete} />
-        </View>
+        {step === 1 && (
+          <>
+            <Text style={styles.title}>Quiz Settings</Text>
+
+            <Text style={styles.label}>Quiz Title</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. Biology Quiz 1"
+              placeholderTextColor="#9CA3AF"
+              value={title}
+              onChangeText={setTitle}
+            />
+
+            <Text style={styles.label}>Number of Questions</Text>
+            <View style={styles.numberInputRow}>
+              <TextInput
+                style={[styles.input, styles.numberInput, !isNumQuestionsValid && styles.inputError]}
+                placeholder={String(DEFAULT_QUESTION_COUNT)}
+                placeholderTextColor="#9CA3AF"
+                value={numQuestionsInput}
+                onChangeText={handleNumQuestionsChange}
+                onBlur={handleNumQuestionsBlur}
+                keyboardType="number-pad"
+                maxLength={3}
+              />
+              <Text style={styles.numberInputHint}>
+                {MIN_QUESTIONS}–{MAX_QUESTIONS} questions
+              </Text>
+            </View>
+
+            <Text style={styles.label}>Question Type</Text>
+            {QUESTION_TYPES.map((t) => {
+              const checked = types.has(t.key);
+              return (
+                <Pressable key={t.key} onPress={() => toggleType(t.key)} style={styles.checkRow}>
+                  <Ionicons
+                    name={checked ? "checkbox" : "square-outline"}
+                    size={22}
+                    color={checked ? colors.primary : "#C7CBD9"}
+                  />
+                  <Text style={styles.checkLabel}>{t.label}</Text>
+                </Pressable>
+              );
+            })}
+
+            <View style={styles.toggleRow}>
+              <Text style={styles.toggleLabel}>Randomize Questions</Text>
+              <Switch
+                value={randomize}
+                onValueChange={setRandomize}
+                trackColor={{ true: colors.primary, false: colors.border }}
+              />
+            </View>
+            <View style={styles.toggleRow}>
+              <Text style={styles.toggleLabel}>Show Answers After Quiz</Text>
+              <Switch
+                value={showAnswers}
+                onValueChange={setShowAnswers}
+                trackColor={{ true: colors.primary, false: colors.border }}
+              />
+            </View>
+          </>
+        )}
+
+        {step === 2 && (
+          <>
+            <Text style={styles.title}>Select Questions</Text>
+            <Text style={styles.subtitle}>Choose which cards to include in your quiz.</Text>
+
+            <Pressable onPress={toggleSelectAll} style={styles.checkRow}>
+              <Ionicons
+                name={selectedCardIds.size === cards.length && cards.length > 0 ? "checkbox" : "square-outline"}
+                size={22}
+                color={selectedCardIds.size > 0 ? colors.primary : "#C7CBD9"}
+              />
+              <Text style={styles.checkLabel}>Select All</Text>
+              <Text style={styles.selectCount}>
+                {selectedCardIds.size}/{cards.length} selected
+              </Text>
+            </Pressable>
+
+            {cards.map((card) => {
+              const checked = selectedCardIds.has(card.id);
+              return (
+                <Pressable key={card.id} onPress={() => toggleCard(card.id)} style={styles.checkRow}>
+                  <Ionicons
+                    name={checked ? "checkbox" : "square-outline"}
+                    size={22}
+                    color={checked ? colors.primary : "#C7CBD9"}
+                  />
+                  <Text style={styles.checkLabel}>{card.front}</Text>
+                </Pressable>
+              );
+            })}
+          </>
+        )}
+
+        {step === 3 && deck && (
+          <>
+            <Text style={styles.title}>Review & Create</Text>
+            <Text style={styles.subtitle}>Check your quiz settings.</Text>
+
+            <View style={styles.summaryCard}>
+              <View style={[styles.iconTile, { backgroundColor: deck.tint }]}>
+                <Ionicons name={deck.icon} size={22} color={deck.color} />
+              </View>
+              <View style={styles.rowText}>
+                <Text style={styles.rowTitle}>{title || `${deck.title} Quiz`}</Text>
+                <Text style={styles.rowMeta}>
+                  {Math.min(numQuestions, selectedCardIds.size)} Questions · {typeLabel || "No type selected"}
+                </Text>
+              </View>
+            </View>
+
+            <SummaryRow label="Deck" value={deck.title} />
+            <SummaryRow label="Questions" value={String(Math.min(numQuestions, selectedCardIds.size))} />
+            <SummaryRow label="Type" value={typeLabel || "—"} />
+            <SummaryRow label="Randomize" value={randomize ? "Yes" : "No"} />
+            <SummaryRow label="Show Answers" value={showAnswers ? "Yes" : "No"} />
+          </>
+        )}
       </ScrollView>
 
-      <OptionsSheet
-        visible={sheet === "edit"}
-        title="Deck Options"
-        items={editItems}
-        onClose={() => setSheet(null)}
-        onSelect={(item) => afterSheet(item.onPress)}
-      />
-      <OptionsSheet
-        visible={sheet === "more"}
-        title="More Options"
-        items={moreItems}
-        onClose={() => setSheet(null)}
-        onSelect={(item) => afterSheet(item.onPress)}
-      />
-
-      <DeckFormModal
-        visible={editOpen}
-        mode="edit"
-        initial={{
-          title: deck.title,
-          description: deck.description ?? "",
-          subject: deck.subject ?? "",
-          isPrivate: deck.isPrivate ?? false,
-        }}
-        onClose={() => setEditOpen(false)}
-        onSave={saveEdits}
-      />
+      {/* Bottom nav */}
+      <View style={styles.footer}>
+        <Pressable onPress={goBack} style={[styles.footerButton, styles.backButton]}>
+          <Text style={styles.backButtonText}>Back</Text>
+        </Pressable>
+        <Pressable
+          onPress={goNext}
+          disabled={!canGoNext}
+          style={[styles.footerButton, styles.nextButton, !canGoNext && styles.nextButtonDisabled]}
+        >
+          <Text style={styles.nextButtonText}>{step === 3 ? "Create Quiz" : "Next"}</Text>
+          {step < 3 && <Ionicons name="arrow-forward" size={16} color={colors.background} />}
+        </Pressable>
+      </View>
     </SafeAreaView>
   );
 }
 
-
-function IconButton({
-  icon,
-  label,
-  onPress,
-}: {
-  icon: IconName;
-  label: string;
-  onPress: () => void;
-}) {
+function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
-    <Pressable
-      onPress={onPress}
-      hitSlop={10}
-      style={styles.iconButton}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-    >
-      <Ionicons name={icon} size={24} color={colors.ink} />
-    </Pressable>
+    <View style={styles.summaryRow}>
+      <Text style={styles.summaryLabel}>{label}</Text>
+      <Text style={styles.summaryValue}>{value}</Text>
+    </View>
   );
 }
-
-function ActionButton({
-  icon,
-  label,
-  primary,
-  onPress,
-}: {
-  icon: IconName;
-  label: string;
-  primary?: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={styles.action}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-    >
-      {({ pressed }) => (
-        <>
-          <View
-            style={[
-              styles.actionCircle,
-              primary && styles.actionCirclePrimary,
-              pressed && styles.pressedFade,
-            ]}
-          >
-            <Ionicons name={icon} size={22} color={primary ? "#FFFFFF" : colors.ink} />
-          </View>
-          <Text style={[styles.actionLabel, primary && styles.actionLabelPrimary]}>{label}</Text>
-        </>
-      )}
-    </Pressable>
-  );
-}
-
-function InfoRow({
-  icon,
-  label,
-  sub,
-  destructive,
-  onPress,
-}: {
-  icon: IconName;
-  label: string;
-  sub?: string;
-  destructive?: boolean;
-  onPress: () => void;
-}) {
-  const tint = destructive ? DANGER : colors.ink;
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [styles.infoRow, pressed && styles.rowPressed]}
-      accessibilityRole="button"
-    >
-      <Ionicons name={icon} size={22} color={tint} />
-      <View style={styles.infoText}>
-        <Text style={[styles.infoLabel, destructive && { color: tint }]}>{label}</Text>
-        {!!sub && <Text style={styles.infoSub}>{sub}</Text>}
-      </View>
-      {!destructive && <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />}
-    </Pressable>
-  );
-}
-
-function OptionsSheet({
-  visible,
-  title,
-  items,
-  onClose,
-  onSelect,
-}: {
-  visible: boolean;
-  title: string;
-  items: SheetItem[];
-  onClose: () => void;
-  onSelect: (item: SheetItem) => void;
-}) {
-  const insets = useSafeAreaInsets();
-
-  return (
-    <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
-      <View style={styles.sheetRoot}>
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={onClose}
-          accessibilityLabel="Close menu"
-        />
-        <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.md }]}>
-          <View style={styles.handle} />
-          <Text style={styles.sheetTitle}>{title}</Text>
-
-          {items.map((item) => {
-            const tint = item.destructive ? DANGER : colors.ink;
-            return (
-              <Pressable
-                key={item.label}
-                onPress={() => onSelect(item)}
-                style={({ pressed }) => [styles.sheetRow, pressed && styles.rowPressed]}
-                accessibilityRole="button"
-              >
-                <Ionicons name={item.icon} size={22} color={tint} />
-                <Text style={[styles.sheetRowText, item.destructive && { color: tint }]}>
-                  {item.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
-    </Modal>
-  );
-}
-
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
   },
-  pressedFade: {
-    opacity: 0.8,
-  },
-  rowPressed: {
-    backgroundColor: "#F8F9FC",
-  },
-
-  // Top bar
   topBar: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 10,
     paddingHorizontal: spacing.lg - 4,
     paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
   },
-  iconButton: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
+  progressTrack: {
+    flex: 1,
+    height: 6,
+    borderRadius: radius.pill,
+    backgroundColor: colors.border,
+    overflow: "hidden",
   },
-
-  content: {
-    paddingHorizontal: spacing.lg - 4,
-    paddingBottom: spacing.xl,
-  },
-
-  // Hero
-  hero: {
-    alignItems: "center",
-    paddingTop: spacing.sm,
-  },
-  coverTile: {
-    width: 84,
-    height: 84,
-    borderRadius: radius.lg,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: spacing.md,
-  },
-  titleLine: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  deckTitle: {
-    flexShrink: 1,
-    fontSize: 24,
-    lineHeight: 30,
-    fontWeight: "800",
-    color: colors.ink,
-    textAlign: "center",
-  },
-  deckDescription: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.body,
-    textAlign: "center",
-    marginTop: spacing.sm,
-  },
-  subjectPill: {
-    marginTop: spacing.sm,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  subjectText: {
-    fontSize: 12,
-    fontWeight: "700",
-  },
-
-  // Quick actions
-  actions: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    marginTop: spacing.lg,
-    marginBottom: spacing.lg,
-  },
-  action: {
-    alignItems: "center",
-    gap: 6,
-    minWidth: 64,
-  },
-  actionCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.primarySoft,
-  },
-  actionCirclePrimary: {
+  progressFill: {
+    height: "100%",
+    borderRadius: radius.pill,
     backgroundColor: colors.primary,
   },
-  actionLabel: {
+  stepCount: {
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: "700",
     color: colors.body,
   },
-  actionLabelPrimary: {
-    color: colors.primary,
+  scroll: {
+    paddingHorizontal: spacing.lg - 4,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xl,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: colors.ink,
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 13,
+    color: colors.body,
+    marginBottom: spacing.md,
   },
 
-  // Rows
-  rows: {
-    gap: 10,
-  },
-  infoRow: {
+  // Search (step 1)
+  search: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
+    gap: 10,
+    height: 46,
     paddingHorizontal: 14,
-    paddingVertical: 14,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
+    backgroundColor: "#F8F9FC",
+    marginBottom: spacing.md,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.ink,
+    paddingVertical: 0,
+  },
+
+  // Rows (deck list)
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 12,
+    marginBottom: 10,
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+    borderColor: colors.border,
     backgroundColor: colors.background,
   },
-  infoText: {
+  rowSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryTint,
+  },
+  rowPressed: {
+    opacity: 0.9,
+  },
+  iconTile: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  rowText: {
     flex: 1,
   },
-  infoLabel: {
+  rowTitle: {
     fontSize: 15,
-    fontWeight: "600",
+    fontWeight: "700",
     color: colors.ink,
   },
-  infoSub: {
+  rowMeta: {
     fontSize: 12,
     color: colors.body,
     marginTop: 2,
   },
 
-  // Not found
-  missing: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingBottom: spacing.xl * 2,
-  },
-  missingTitle: {
-    fontSize: 18,
-    fontWeight: "800",
+  // Settings (step 2)
+  label: {
+    fontSize: 13,
+    fontWeight: "700",
     color: colors.ink,
-  },
-  missingBody: {
-    fontSize: 14,
-    color: colors.body,
-    marginTop: spacing.sm,
-  },
-
-  // Bottom sheet
-  sheetRoot: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(17, 25, 54, 0.35)",
-  },
-  sheet: {
-    paddingHorizontal: spacing.lg - 4,
-    paddingTop: 10,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    backgroundColor: colors.background,
-  },
-  handle: {
-    alignSelf: "center",
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.border,
-    marginBottom: spacing.md,
-  },
-  sheetTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: colors.ink,
-    marginBottom: spacing.md,
-  },
-  sheetRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    paddingHorizontal: 14,
-    height: 52,
     marginBottom: 8,
+    marginTop: spacing.md,
+  },
+  input: {
+    height: 46,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
+    backgroundColor: "#F8F9FC",
+    paddingHorizontal: 14,
+    fontSize: 14,
+    color: colors.ink,
   },
-  sheetRowText: {
-    fontSize: 15,
+  inputError: {
+    borderColor: "#E5484D",
+  },
+  numberInputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  numberInput: {
+    width: 90,
+    textAlign: "center",
+    fontWeight: "700",
+  },
+  numberInputHint: {
+    fontSize: 12,
+    color: colors.body,
+  },
+  checkRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 10,
+  },
+  checkLabel: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.ink,
+  },
+  selectCount: {
+    fontSize: 12,
+    color: colors.body,
+  },
+  toggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+    marginTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  toggleLabel: {
+    fontSize: 14,
     fontWeight: "600",
     color: colors.ink,
+  },
+
+  // Review (step 4)
+  summaryCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 14,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: spacing.md,
+  },
+  summaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  summaryLabel: {
+    fontSize: 13,
+    color: colors.body,
+  },
+  summaryValue: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.ink,
+  },
+
+  // Footer
+  footer: {
+    flexDirection: "row",
+    gap: 12,
+    paddingHorizontal: spacing.lg - 4,
+    paddingVertical: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  footerButton: {
+    flex: 1,
+    height: 48,
+    borderRadius: radius.md,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 6,
+  },
+  backButton: {
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  backButtonText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.ink,
+  },
+  nextButton: {
+    backgroundColor: colors.primary,
+  },
+  nextButtonDisabled: {
+    opacity: 0.4,
+  },
+  nextButtonText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.background,
   },
 });
