@@ -17,9 +17,6 @@ const SORTS: { key: SortKey; label: string }[] = [
   { key: "cards", label: "Most cards" },
 ];
 
-// This screen is just a UI mock — not wired to a real backend or the
-// deckStore. All deck data lives in local component state below, seeded
-// with a single deck. Add/delete/sort/search all just mutate this array.
 const INITIAL_DECKS: Deck[] = [
   {
     id: "1",
