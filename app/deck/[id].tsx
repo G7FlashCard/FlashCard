@@ -46,13 +46,17 @@ export default function DeckScreen() {
   const comingSoon = (feature: string) =>
     Alert.alert(feature, "This part isn't built yet.");
 
-  const needsCards = (feature: string) =>
+  // Gate any card-dependent feature behind having at least one card, then
+  // run the real action instead of always falling back to "coming soon".
+  const needsCards = (feature: string, onReady: () => void) =>
     deck.cardCount === 0
       ? Alert.alert("No cards yet", "Add cards to this deck before you start.")
-      : comingSoon(feature);
+      : onReady();
 
   const goToAddCards = () => router.push(`/deck/${deck.id}/add-cards` as any);
   const goToStudy = () => router.push(`/deck/${deck.id}/study` as any);
+  const goToQuiz = () =>
+    router.push({ pathname: "/quiz/create" as any, params: { deckId: deck.id } });
 
   const confirmDelete = () =>
     Alert.alert(
@@ -93,7 +97,7 @@ export default function DeckScreen() {
   const editItems: SheetItem[] = [
     { icon: "create-outline", label: "Edit Deck Details", onPress: () => setEditOpen(true) },
     { icon: "add", label: "Add Cards", onPress: goToAddCards },
-    { icon: "reorder-three-outline", label: "Reorder Cards", onPress: () => needsCards("Reorder Cards") },
+    { icon: "reorder-three-outline", label: "Reorder Cards", onPress: () => needsCards("Reorder Cards", () => comingSoon("Reorder Cards")) },
     { icon: "copy-outline", label: "Duplicate Deck", onPress: copyDeck },
     { icon: "people-outline", label: "Share Deck", onPress: () => comingSoon("Share Deck") },
     { icon: "trash-outline", label: "Delete Deck", onPress: confirmDelete, destructive: true },
@@ -150,9 +154,13 @@ export default function DeckScreen() {
             icon="play"
             label="Study"
             primary
-            onPress={() => (deck.cardCount === 0 ? needsCards("Study") : goToStudy())}
+            onPress={() => needsCards("Study", goToStudy)}
           />
-          <ActionButton icon="help" label="Quiz" onPress={() => needsCards("Quiz")} />
+          <ActionButton
+            icon="help"
+            label="Quiz"
+            onPress={() => needsCards("Quiz", goToQuiz)}
+          />
           <ActionButton icon="pencil" label="Edit" onPress={() => setSheet("edit")} />
           <ActionButton icon="ellipsis-horizontal" label="More" onPress={() => setSheet("more")} />
         </View>
