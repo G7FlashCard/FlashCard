@@ -88,25 +88,11 @@ export default function DeckOptionsScreen() {
   const editItems: SheetItem[] = [
     { key: "details", label: "Edit Deck Details", icon: "create-outline", onPress: () => comingSoon("Edit Deck Details") },
     { key: "add", label: "Add Cards", icon: "add", onPress: () => router.push(`/deck/${deck.id}/add-cards` as any) },
-    { key: "reorder", label: "Reorder Cards", icon: "reorder-three-outline", onPress: () => comingSoon("Reorder Cards") },
-    { key: "duplicate", label: "Duplicate Deck", icon: "copy-outline", onPress: duplicate },
     { key: "share", label: "Share Deck", icon: "people-outline", onPress: () => comingSoon("Share Deck") },
     deleteItem,
   ];
 
-  const moreItems: SheetItem[] = [
-    {
-      key: "favorite",
-      label: deck.favorite ? "Remove from Favorites" : "Add to Favorites",
-      icon: deck.favorite ? "heart" : "heart-outline",
-      onPress: () => updateDeck(deck.id, { favorite: !deck.favorite }),
-    },
-    { key: "export", label: "Export Deck", icon: "download-outline", onPress: () => comingSoon("Export Deck") },
-    { key: "print", label: "Print Deck", icon: "print-outline", onPress: () => comingSoon("Print Deck") },
-    { key: "copy", label: "Make a Copy", icon: "copy-outline", onPress: duplicate },
-    { key: "folder", label: "Move to Folder", icon: "folder-outline", onPress: () => comingSoon("Move to Folder") },
-    deleteItem,
-  ];
+
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -141,7 +127,7 @@ export default function DeckOptionsScreen() {
           <ActionButton label="Study" icon="play" variant="primary" onPress={() => comingSoon("Study")} />
           <ActionButton label="Quiz" icon="help" variant="dark" onPress={startQuiz} />
           <ActionButton label="Edit" icon="pencil-outline" variant="light" onPress={() => setSheet("edit")} />
-          <ActionButton label="More" icon="ellipsis-horizontal" variant="light" onPress={() => setSheet("more")} />
+         
         </View>
 
         {/* List */}
@@ -152,7 +138,7 @@ export default function DeckOptionsScreen() {
           onPress={() => comingSoon("Flashcards")}
         />
         <NavRow icon="stats-chart-outline" label="Quiz Results" onPress={() => comingSoon("Quiz Results")} />
-        <NavRow icon="bar-chart-outline" label="Statistics" onPress={() => comingSoon("Statistics")} />
+        {/* <NavRow icon="bar-chart-outline" label="Statistics" onPress={() => comingSoon("Statistics")} /> */}
         <NavRow icon="people-outline" label="Share Deck" onPress={() => comingSoon("Share Deck")} />
         <NavRow icon="trash-outline" label="Delete Deck" destructive onPress={confirmDelete} />
       </ScrollView>
@@ -163,12 +149,7 @@ export default function DeckOptionsScreen() {
         items={editItems}
         onClose={() => setSheet(null)}
       />
-      <ActionSheet
-        visible={sheet === "more"}
-        title="More Options"
-        items={moreItems}
-        onClose={() => setSheet(null)}
-      />
+
     </SafeAreaView>
   );
 }
