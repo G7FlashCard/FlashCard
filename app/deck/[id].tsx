@@ -87,7 +87,7 @@ export default function DeckOptionsScreen() {
 
   const editItems: SheetItem[] = [
     { key: "details", label: "Edit Deck Details", icon: "create-outline", onPress: () => comingSoon("Edit Deck Details") },
-    { key: "add", label: "Add Cards", icon: "add", onPress: () => comingSoon("Add Cards") },
+    { key: "add", label: "Add Cards", icon: "add", onPress: () => router.push(`/deck/${deck.id}/add-cards` as any) },
     { key: "reorder", label: "Reorder Cards", icon: "reorder-three-outline", onPress: () => comingSoon("Reorder Cards") },
     { key: "duplicate", label: "Duplicate Deck", icon: "copy-outline", onPress: duplicate },
     { key: "share", label: "Share Deck", icon: "people-outline", onPress: () => comingSoon("Share Deck") },
