@@ -331,9 +331,6 @@ export default function CreateQuizScreen() {
                 keyboardType="number-pad"
                 maxLength={3}
               />
-              <Text style={styles.numberInputHint}>
-                {MIN_QUESTIONS}–{MAX_QUESTIONS} · used when generating from a file
-              </Text>
             </View>
 
             <Text style={styles.label}>Question Type</Text>
