@@ -7,10 +7,10 @@ Users can create different decks based on their subjects or topics. Each deck ca
 
 FlashCard also includes a quiz feature that allows users to create quizzes from their existing decks. Users can select questions, choose the number and type of questions, take the quiz, and view their results afterward. This helps them test their knowledge and identify topics they may need to review.
 
-The application has a Timeline that displays learning activities such as completed study sessions, quiz results, newly created decks, achievements, and study streaks. It also includes a Friends feature, where users can add other learners and view their learning activities.
+The application has a Timeline that displays learning activities such as completed study sessions, quiz results, and newly created decks. It also includes a Friends feature, where users can add other learners and view their learning activities.
 
-The Profile uses a social-media-inspired design where users can display their profile information, learning statistics, decks, achievements, and study-related activities.
+The Profile uses a social-media-inspired design where users can display their profile information, decks, and study-related activities.
 
-FlashCard also tracks the user's daily goals, study streaks, cards studied, quiz scores, and overall learning progress. These features encourage users to study regularly and monitor their improvement over time.
+FlashCard also tracks the user's daily goals, cards studied, quiz scores, and overall learning progress. These features encourage users to study regularly and monitor their improvement over time.
 
 Overall, FlashCard combines digital flashcards, customizable quizzes, progress tracking, and social learning features in one mobile application, making studying more organized, interactive, and engaging.
