@@ -21,6 +21,7 @@ import type { QuestionType, QuizQuestion } from "../../screens/quizTypes";
 import { generateQuestionsFromFile } from "../../screens/quizGenerator";
 import type { FileKind, PickedFile } from "../../screens/quizGenerator";
 import { setActiveQuiz } from "../../screens/quizSession";
+import { useDecks } from "../../screens/deckRepo";
 
 // ---------------------------------------------------------------------------
 // Create Quiz wizard (UI only, nothing is saved to a backend yet).
@@ -32,23 +33,6 @@ import { setActiveQuiz } from "../../screens/quizSession";
 // ---------------------------------------------------------------------------
 
 type IconName = keyof typeof Ionicons.glyphMap;
-
-type DeckOption = {
-  id: string;
-  title: string;
-  cardCount: number;
-  icon: IconName;
-  tint: string;
-  color: string;
-};
-
-const DECKS: DeckOption[] = [
-  { id: "1", title: "Biology", cardCount: 24, icon: "leaf-outline", tint: "#E7FBEE", color: "#22C55E" },
-  { id: "2", title: "Math Formulas", cardCount: 28, icon: "calculator-outline", tint: "#FDECEC", color: "#EF4444" },
-  { id: "3", title: "English Vocabulary", cardCount: 50, icon: "book-outline", tint: "#EAF2FE", color: "#3B82F6" },
-  { id: "4", title: "History", cardCount: 40, icon: "library-outline", tint: "#FDECEC", color: "#EF4444" },
-  { id: "5", title: "Science", cardCount: 32, icon: "flask-outline", tint: "#EAF2FE", color: "#3B82F6" },
-];
 
 const FILE_KINDS: { kind: FileKind; label: string; hint: string; icon: IconName; mime: string[] }[] = [
   {
@@ -90,9 +74,10 @@ function formatSize(bytes?: number) {
 export default function CreateQuizScreen() {
   // Arriving from a deck's "Quiz" button passes ?deckId=... — preselect that
   // deck and skip straight to the settings step.
+  const decks = useDecks();
   const params = useLocalSearchParams<{ deckId?: string }>();
   const preselectedDeckId =
-    params.deckId && DECKS.some((d) => d.id === params.deckId) ? params.deckId : null;
+    params.deckId && decks.some((d) => d.id === params.deckId) ? params.deckId : null;
 
   const [step, setStep] = useState(preselectedDeckId ? 1 : 0); // 0-3
 
@@ -112,11 +97,11 @@ export default function CreateQuizScreen() {
   const [pickedFile, setPickedFile] = useState<PickedFile | null>(null);
   const [generating, setGenerating] = useState(false);
 
-  const deck = useMemo(() => DECKS.find((d) => d.id === deckId) ?? null, [deckId]);
+  const deck = useMemo(() => decks.find((d) => d.id === deckId) ?? null, [decks, deckId]);
   const filteredDecks = useMemo(() => {
     const q = deckQuery.trim().toLowerCase();
-    return q ? DECKS.filter((d) => d.title.toLowerCase().includes(q)) : DECKS;
-  }, [deckQuery]);
+    return q ? decks.filter((d) => d.title.toLowerCase().includes(q)) : decks;
+  }, [decks, deckQuery]);
 
   const enabledTypes = useMemo(
     () => QUESTION_TYPES.filter((t) => types.has(t.key)).map((t) => t.key),
@@ -279,6 +264,14 @@ export default function CreateQuizScreen() {
                 onChangeText={setDeckQuery}
               />
             </View>
+
+            {filteredDecks.length === 0 && (
+              <Text style={styles.emptyHint}>
+                {deckQuery.trim()
+                  ? "No decks match your search."
+                  : "You don't have any decks yet. Create one in the Decks tab first."}
+              </Text>
+            )}
 
             {filteredDecks.map((d) => {
               const selected = d.id === deckId;
