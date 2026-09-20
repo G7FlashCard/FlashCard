@@ -4,9 +4,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
-import type { Deck } from "../../screens/deckData";
 import { DeckFormModal } from "../../screens/DeckFormModal";
 import type { DeckInput } from "../../screens/deckStore";
+import { addDeck, removeDeck, useDecks } from "../../screens/deckRepo";
+import type { StoredDeck } from "../../screens/deckRepo";
 import { colors, radius, spacing } from "../../screens/theme";
 
 type SortKey = "default" | "name" | "cards";
@@ -17,19 +18,10 @@ const SORTS: { key: SortKey; label: string }[] = [
   { key: "cards", label: "Most cards" },
 ];
 
-const INITIAL_DECKS: Deck[] = [
-  {
-    id: "1",
-    title: "Biology",
-    cardCount: 24,
-    icon: "leaf-outline",
-    tint: "#E7FBEE",
-    color: "#22C55E",
-  },
-];
-
 export default function DecksScreen() {
-  const [decks, setDecks] = useState<Deck[]>(INITIAL_DECKS);
+  // Shared with every other screen (Home, Deck Options, Create Quiz).
+  const decks = useDecks();
+
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("default");
   const [sortOpen, setSortOpen] = useState(false);
@@ -51,17 +43,19 @@ export default function DecksScreen() {
   const openDeck = (id: string) => router.push(`/deck/${id}` as any);
 
   const createDeck = (input: DeckInput) => {
-    const deck: Deck = {
+    const deck = {
       id: String(Date.now()),
       title: input.title,
       cardCount: 0,
       subject: input.subject,
+      description: "",
       icon: input.icon ?? "albums-outline",
       tint: input.tint ?? colors.primaryTint,
       color: input.color ?? colors.primary,
-    } as Deck;
+      favorite: false,
+    } as StoredDeck;
 
-    setDecks((prev) => [...prev, deck]);
+    addDeck(deck);
     setQuery("");
     setSort("default");
     setCreateOpen(false);
@@ -69,19 +63,17 @@ export default function DecksScreen() {
     openDeck(deck.id);
   };
 
-  const deleteDeckLocal = (id: string) => setDecks((prev) => prev.filter((deck) => deck.id !== id));
-
-  const confirmDelete = (deck: Deck) =>
+  const confirmDelete = (deck: StoredDeck) =>
     Alert.alert(
       "Delete deck?",
       `"${deck.title}" and its ${deck.cardCount} cards will be permanently deleted.`,
       [
         { text: "Cancel", style: "cancel" },
-        { text: "Delete", style: "destructive", onPress: () => deleteDeckLocal(deck.id) },
+        { text: "Delete", style: "destructive", onPress: () => removeDeck(deck.id) },
       ]
     );
 
-  const openMenu = (deck: Deck) =>
+  const openMenu = (deck: StoredDeck) =>
     Alert.alert(deck.title, undefined, [
       { text: "Delete Deck", style: "destructive", onPress: () => confirmDelete(deck) },
       { text: "Cancel", style: "cancel" },
@@ -195,7 +187,7 @@ function DeckRow({
   onOpen,
   onMenu,
 }: {
-  deck: Deck;
+  deck: StoredDeck;
   onOpen: () => void;
   onMenu: () => void;
 }) {
