@@ -14,7 +14,7 @@ import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { addCard } from "./cardStore";
-import { useDeck } from "./deckStore";
+import { getDeck, updateDeck, useDeck } from "./deckRepo";
 import { colors, radius, spacing } from "./theme";
 
 type Props = {
@@ -52,6 +52,11 @@ export default function AddCardManualScreen({ deckId }: Props) {
   const handleAddCard = () => {
     if (!back.trim()) return;
     addCard(deckId, { front: front.trim(), back: back.trim() });
+
+    // Keep the deck's "N cards" count in step with the cards actually added.
+    const current = getDeck(deckId);
+    if (current) updateDeck(deckId, { cardCount: current.cardCount + 1 });
+
     setStep("success");
   };
 
@@ -59,8 +64,9 @@ export default function AddCardManualScreen({ deckId }: Props) {
     resetForm();
   };
 
+  // Go straight back to the deck (not just one screen back to "Add Cards").
   const handleDone = () => {
-    router.back();
+    router.dismissTo(`/deck/${deckId}` as any);
   };
 
   if (step === "success") {
