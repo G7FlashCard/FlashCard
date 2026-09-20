@@ -33,7 +33,7 @@ type Profile = {
 };
 
 const INITIAL_PROFILE: Profile = {
-  name: "April Lentejas",
+  name: "Nano Ba Kit Na GRoup?? Basta Group Something Kit",
   username: "april.lentejas",
   bio: "Keep learning, keep growing! ✨",
 };
@@ -53,7 +53,7 @@ type GridTab = "decks" | "saved" | "badges";
 const GRID_TABS: { key: GridTab; icon: IconName; iconActive: IconName; label: string }[] = [
   { key: "decks", icon: "grid-outline", iconActive: "grid", label: "My decks" },
   { key: "saved", icon: "bookmark-outline", iconActive: "bookmark", label: "Favorite decks" },
-  { key: "badges", icon: "trophy-outline", iconActive: "trophy", label: "Badges" },
+  // { key: "badges", icon: "trophy-outline", iconActive: "trophy", label: "Badges" },
 ];
 
 type Badge = { key: string; label: string; icon: IconName; earned: boolean };
@@ -71,14 +71,14 @@ export default function ProfileScreen() {
 
   const favorites = decks.filter((deck) => deck.favorite);
 
-  const badges: Badge[] = [
-    { key: "first", label: "First Deck", icon: "albums-outline", earned: decks.length >= 1 },
-    { key: "streak", label: "7-Day Streak", icon: "flame-outline", earned: true },
-    { key: "quiz", label: "Quiz Whiz", icon: "trophy-outline", earned: true },
-    { key: "book", label: "Bookworm", icon: "book-outline", earned: false },
-    { key: "social", label: "Social Butterfly", icon: "people-outline", earned: false },
-    { key: "perfect", label: "Perfect Score", icon: "star-outline", earned: false },
-  ];
+  // const badges: Badge[] = [
+  //   { key: "first", label: "First Deck", icon: "albums-outline", earned: decks.length >= 1 },
+  //   { key: "streak", label: "7-Day Streak", icon: "flame-outline", earned: true },
+  //   { key: "quiz", label: "Quiz Whiz", icon: "trophy-outline", earned: true },
+  //   { key: "book", label: "Bookworm", icon: "book-outline", earned: false },
+  //   { key: "social", label: "Social Butterfly", icon: "people-outline", earned: false },
+  //   { key: "perfect", label: "Perfect Score", icon: "star-outline", earned: false },
+  // ];
 
   // 3 columns filling the screen width.
   const sidePadding = spacing.lg - 4;
@@ -173,32 +173,9 @@ export default function ProfileScreen() {
           >
             <Text style={styles.editText}>Edit Profile</Text>
           </Pressable>
-          <Pressable
-            onPress={() => router.navigate("/friends")}
-            style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel="Find friends"
-          >
-            <Ionicons name="person-add-outline" size={20} color={colors.ink} />
-          </Pressable>
+
         </View>
 
-        {/* Highlights */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.highlights}
-        >
-          <Highlight label="New" icon="add" dashed onPress={() => comingSoon("New highlight")} />
-          {HIGHLIGHTS.map((item) => (
-            <Highlight
-              key={item.key}
-              label={item.label}
-              icon={item.icon}
-              onPress={() => comingSoon(item.label)}
-            />
-          ))}
-        </ScrollView>
 
         {/* Grid tabs */}
         <View style={styles.gridTabs}>
@@ -252,8 +229,8 @@ export default function ProfileScreen() {
               ))
             ))}
 
-          {gridTab === "badges" &&
-            badges.map((badge) => <BadgeTile key={badge.key} badge={badge} size={tileSize} />)}
+          {/* {gridTab === "badges" &&
+            badges.map((badge) => <BadgeTile key={badge.key} badge={badge} size={tileSize} />)} */}
         </View>
       </ScrollView>
 
@@ -354,27 +331,7 @@ function DeckTile({
   );
 }
 
-function BadgeTile({ badge, size }: { badge: Badge; size: number }) {
-  return (
-    <View
-      style={[
-        styles.tile,
-        { width: size, height: size },
-        badge.earned ? styles.badgeEarned : styles.badgeLocked,
-      ]}
-      accessibilityLabel={`${badge.label}, ${badge.earned ? "earned" : "locked"}`}
-    >
-      <Ionicons
-        name={badge.earned ? badge.icon : "lock-closed-outline"}
-        size={28}
-        color={badge.earned ? colors.primary : "#9CA3AF"}
-      />
-      <Text style={[styles.tileTitle, !badge.earned && styles.tileTitleLocked]} numberOfLines={2}>
-        {badge.label}
-      </Text>
-    </View>
-  );
-}
+
 
 function GridEmpty({ icon, title, body }: { icon: IconName; title: string; body: string }) {
   return (
@@ -687,12 +644,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
-  // Highlights
-  highlights: {
-    gap: 16,
-    paddingHorizontal: spacing.lg - 4,
-    paddingVertical: spacing.md,
-  },
+  // // Highlights
+  // highlights: {
+  //   gap: 16,
+  //   paddingHorizontal: spacing.lg - 4,
+  //   paddingVertical: spacing.md,
+  // },
   highlight: {
     alignItems: "center",
     gap: 6,
@@ -764,12 +721,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.body,
   },
-  badgeEarned: {
-    backgroundColor: colors.primaryTint,
-  },
-  badgeLocked: {
-    backgroundColor: "#F3F4F6",
-  },
+  // badgeEarned: {
+  //   backgroundColor: colors.primaryTint,
+  // },
+  // badgeLocked: {
+  //   backgroundColor: "#F3F4F6",
+  // },
   gridEmpty: {
     width: "100%",
     alignItems: "center",
