@@ -5,6 +5,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -12,91 +13,26 @@ import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import Svg, { Circle } from "react-native-svg";
 
-import { DECKS } from "../../screens/deckData";
+import { useDecks } from "../../screens/deckRepo";
 import { colors, radius, spacing } from "../../screens/theme";
+
+// Mock data. Replace with real data later.
 const USER_NAME = "April";
-const NOTIFICATION_COUNT = 3;
 
-const palette = {
-  purple: "#7C5CFC",
-  purpleTint: "#F1ECFF",
-  blue: "#3B82F6",
-  blueTint: "#EAF2FE",
-  green: "#22C55E",
-  greenTint: "#E7FBEE",
-  red: "#EF4444",
-  redTint: "#FDECEC",
-  gold: "#F5A623",
-  pink: "#FDEEF1",
-  pinkText: "#DB2777",
-};
-
-const QUICK_ACTIONS = [
-  { key: "decks", label: "Decks", icon: "layers-outline", tint: palette.blueTint, color: palette.blue, route: "/decks" },
-  { key: "quizzes", label: "Quizzes", icon: "help-circle-outline", tint: palette.purpleTint, color: palette.purple, route: "/quizzes" },
-  { key: "progress", label: "Progress", icon: "stats-chart-outline", tint: palette.greenTint, color: palette.green, route: "/progress" },
-  { key: "friends", label: "Friends", icon: "people-outline", tint: "#FFF1E6", color: "#F08A3C", route: "/friends" },
-] as const;
-
-const CONTINUE_DECKS = [
-  { id: "1", title: "Biology", cardCount: 24, learnedPct: 0.6, icon: "leaf-outline", tint: palette.greenTint, color: palette.green },
-  { id: "2", title: "Math Formulas", cardCount: 28, learnedPct: 0.3, icon: "calculator-outline", tint: palette.redTint, color: palette.red },
-] as const;
-
-const RECENT_ACTIVITY = [
-  {
-    id: "a1",
-    icon: "book-outline",
-    iconTint: palette.blueTint,
-    iconColor: palette.blue,
-    title: "You studied English Vocabulary",
-    subtitle: "20 cards · 80% correct",
-    time: "2h ago",
-  },
-  {
-    id: "a2",
-    icon: "flame",
-    iconTint: "#FFF1E0",
-    iconColor: palette.gold,
-    title: "You reached a 7-day streak!",
-    subtitle: "Keep it up!",
-    time: "5h ago",
-  },
-] as const;
-
+const CONTINUE = { deckId: "1", title: "Cell Membrane", studied: 12, total: 24 };
 const GOAL = { done: 3, target: 5 };
 
-const STATS = [
-  { key: "streak", icon: "flame", color: palette.gold, value: "7", label: "Day Streak" },
-  { key: "cards", icon: "bar-chart", color: colors.primary, value: "48", label: "Cards Studied" },
-  { key: "score", icon: "trophy", color: palette.gold, value: "80%", label: "Avg. Score" },
-  { key: "quizzes", icon: "locate", color: colors.primary, value: "3", label: "Quizzes Taken" },
-] as const;
-
-const FRIENDS_ACTIVITY = [
-  { id: "f1", name: "Mia Santos", action: "completed a quiz in Biology", time: "1h ago", tint: palette.pink, initials: "MS" },
-  { id: "f2", name: "Alex Cruz", action: "studied Math Formulas", time: "3h ago", tint: palette.blueTint, initials: "AC" },
-  { id: "f3", name: "Sophie Tan", action: "reached a 5-day streak!", time: "5h ago", tint: palette.greenTint, initials: "ST" },
-] as const;
-
-const RECOMMENDED = [
-  { id: "r1", title: "Psychology Basics", cardCount: 36, icon: "flower-outline", tint: palette.purpleTint, color: palette.purple },
-  { id: "r2", title: "World History", cardCount: 42, icon: "earth-outline", tint: palette.blueTint, color: palette.blue },
-] as const;
-
-const QUOTE = "A little progress each day adds up to big results.";
-
-// ---------------------------------------------------------------------------
-
 export default function HomeScreen() {
-  const [goalDone] = useState(GOAL.done);
+  const [query, setQuery] = useState("");
 
-  const greeting = useMemo(() => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 18) return "Good afternoon";
-    return "Good evening";
-  }, []);
+  // Shared with the Decks tab. "Recent" = the 3 most recently added decks.
+  const decks = useDecks();
+  const recentDecks = useMemo(() => [...decks].reverse().slice(0, 3), [decks]);
+
+  const visibleDecks = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return q ? recentDecks.filter((deck) => deck.title.toLowerCase().includes(q)) : recentDecks;
+  }, [recentDecks, query]);
 
   const openDeck = (id: string) => router.push(`/deck/${id}` as any);
 
@@ -104,123 +40,129 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.container} edges={["top"]}>
       <ScrollView
         contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerText}>
-            <Text style={styles.greeting}>
-              {greeting}, {USER_NAME}!
-            </Text>
+            <Text style={styles.greeting}>Hi, {USER_NAME}!</Text>
+            <Text style={styles.subtitle}>Keep learning, keep growing! ✨</Text>
           </View>
 
           <Pressable
-            style={styles.iconButton}
-            onPress={() => router.navigate("/notifications" as any)}
+            style={styles.bell}
+            onPress={() => Alert.alert("Notifications", "Notifications aren't available yet.")}
             accessibilityRole="button"
             accessibilityLabel="Notifications"
           >
-            <Ionicons name="notifications-outline" size={30} color={colors.ink} />
-            {NOTIFICATION_COUNT > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{NOTIFICATION_COUNT}</Text>
-              </View>
-            )}
+            <Ionicons name="notifications-outline" size={24} color={colors.ink} />
+            <View style={styles.bellDot} />
+          </Pressable>
+
+          <Pressable
+            style={styles.avatar}
+            onPress={() => router.navigate("/profile")}
+            accessibilityRole="button"
+            accessibilityLabel="Open profile"
+          >
+            <Text style={styles.avatarText}>{USER_NAME.charAt(0)}</Text>
           </Pressable>
         </View>
 
-        {/* Banner */}
-        <View style={styles.banner}>
-          <View style={styles.bannerText}>
-            <Text style={styles.bannerTitle}>Small cards. Big progress.</Text>
-            <Text style={styles.bannerSubtitle}>
-              Turn what you learn today into a brighter tomorrow.
-            </Text>
-            <Pressable
-              style={({ pressed }) => [styles.bannerButton, pressed && styles.bannerButtonPressed]}
-              onPress={() => router.navigate("/decks")}
-              accessibilityRole="button"
-            >
-              <Text style={styles.bannerButtonText}>Let's Learn</Text>
-              <Ionicons name="arrow-forward" size={16} color={colors.background} />
+        {/* Search */}
+        <View style={styles.search}>
+          <Ionicons name="search-outline" size={20} color={colors.body} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search decks, quizzes, or friends..."
+            placeholderTextColor="#9CA3AF"
+            value={query}
+            onChangeText={setQuery}
+            returnKeyType="search"
+            autoCorrect={false}
+          />
+          {query.length > 0 && (
+            <Pressable onPress={() => setQuery("")} hitSlop={10} accessibilityLabel="Clear search">
+              <Ionicons name="close-circle" size={18} color="#9CA3AF" />
             </Pressable>
-          </View>
+          )}
         </View>
 
-        {/* Continue Studying */}
-        <SectionHeader title="Continue Studying" action="View All" onAction={() => router.navigate("/decks")} />
-        {CONTINUE_DECKS.map((deck) => (
-          <Pressable
-            key={deck.id}
-            onPress={() => openDeck(deck.id)}
-            style={({ pressed }) => [styles.card, styles.continueRow, pressed && styles.cardPressed]}
-            accessibilityRole="button"
-          >
-            <View style={[styles.iconTile, { backgroundColor: deck.tint }]}>
-              <Ionicons name={deck.icon as any} size={22} color={deck.color} />
-            </View>
-            <View style={styles.continueBody}>
-              <Text style={styles.deckTitle}>{deck.title}</Text>
-              <View style={styles.progressRow}>
-                <Text style={styles.progressCaption}>{deck.cardCount} cards</Text>
-                <Text style={styles.progressCaption}>· {Math.round(deck.learnedPct * 100)}% learned</Text>
+        {/* Recent Decks */}
+        <SectionHeader
+          title="Recent Decks"
+          action="View All"
+          onAction={() => router.navigate("/decks")}
+        />
+        {visibleDecks.length === 0 ? (
+          <Text style={styles.empty}>
+            {query.trim()
+              ? `No decks match "${query.trim()}".`
+              : "No decks yet. Create one in the Decks tab."}
+          </Text>
+        ) : (
+          visibleDecks.map((deck) => (
+            <Pressable
+              key={deck.id}
+              onPress={() => openDeck(deck.id)}
+              style={({ pressed }) => [styles.card, styles.deckRow, pressed && styles.cardPressed]}
+              accessibilityRole="button"
+            >
+              <View style={[styles.iconTile, { backgroundColor: deck.tint }]}>
+                <Ionicons name={deck.icon} size={22} color={deck.color} />
               </View>
+              <View style={styles.deckText}>
+                <Text style={styles.deckTitle}>{deck.title}</Text>
+                <Text style={styles.deckMeta}>{deck.cardCount} cards</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+            </Pressable>
+          ))
+        )}
+
+        {/* Continue Studying */}
+        <SectionHeader title="Continue Studying" />
+        <Pressable
+          onPress={() => openDeck(CONTINUE.deckId)}
+          style={({ pressed }) => [styles.card, styles.continueCard, pressed && styles.cardPressed]}
+          accessibilityRole="button"
+        >
+          <View style={[styles.iconTile, { backgroundColor: colors.primaryTint }]}>
+            <Ionicons name="albums-outline" size={22} color={colors.primary} />
+          </View>
+          <View style={styles.continueBody}>
+            <Text style={styles.deckTitle}>{CONTINUE.title}</Text>
+            <View style={styles.progressRow}>
               <View style={styles.progressTrack}>
                 <View
                   style={[
                     styles.progressFill,
-                    { width: `${deck.learnedPct * 100}%`, backgroundColor: deck.color },
+                    { width: `${(CONTINUE.studied / CONTINUE.total) * 100}%` },
                   ]}
                 />
               </View>
+              <Text style={styles.progressCount}>
+                {CONTINUE.studied}/{CONTINUE.total}
+              </Text>
             </View>
-            <View style={[styles.playButton, { backgroundColor: deck.color }]}>
-              <Ionicons name="play" size={16} color={colors.background} />
-            </View>
-          </Pressable>
-        ))}
-
-        {/* Recent Activity */}
-        <SectionHeader title="Recent Activity" action="See All" onAction={() => router.navigate("/activity" as any)} />
-        {RECENT_ACTIVITY.map((item) => (
-          <View key={item.id} style={[styles.card, styles.activityRow]}>
-            <View style={[styles.activityIcon, { backgroundColor: item.iconTint }]}>
-              <Ionicons name={item.icon as any} size={20} color={item.iconColor} />
-            </View>
-            <View style={styles.activityBody}>
-              <Text style={styles.deckTitle}>{item.title}</Text>
-              <Text style={styles.deckMeta}>{item.subtitle}</Text>
-            </View>
-            <Text style={styles.timeText}>{item.time}</Text>
           </View>
-        ))}
-        
-        {/* Stats grid */}
-        <View style={styles.statsGrid}>
-          {STATS.map((stat) => (
-            <View key={stat.key} style={[styles.card, styles.statCard]}>
-              <Ionicons name={stat.icon as any} size={20} color={stat.color} />
-              <Text style={styles.statValue}>{stat.value}</Text>
-              <Text style={styles.statLabel}>{stat.label}</Text>
+        </Pressable>
+
+        {/* Today's Goal */}
+        <View style={[styles.card, styles.goalCard]}>
+          <View>
+            <Text style={styles.goalTitle}>Today's Goal</Text>
+            <View style={styles.goalRow}>
+              <Ionicons name="flame" size={20} color={colors.flame} />
+              <Text style={styles.goalText}>
+                {GOAL.done}/{GOAL.target} decks
+              </Text>
             </View>
-          ))}
+          </View>
+          <ProgressRing progress={GOAL.done / GOAL.target} />
         </View>
-
-        {/* Friends Activity */}
-        <SectionHeader title="Friends Activity" action="See All" onAction={() => router.navigate("/friends")} />
-        {FRIENDS_ACTIVITY.map((friend) => (
-          <View key={friend.id} style={[styles.card, styles.activityRow]}>
-            <View style={[styles.friendAvatar, { backgroundColor: friend.tint }]}>
-              <Text style={styles.friendInitials}>{friend.initials}</Text>
-              <View style={styles.onlineDotSmall} />
-            </View>
-            <View style={styles.activityBody}>
-              <Text style={styles.deckTitle}>{friend.name}</Text>
-              <Text style={styles.deckMeta}>{friend.action}</Text>
-            </View>
-            <Text style={styles.timeText}>{friend.time}</Text>
-          </View>
-        ))}
       </ScrollView>
     </SafeAreaView>
   );
@@ -258,7 +200,14 @@ function ProgressRing({ progress, size = 60, stroke = 7 }: { progress: number; s
       accessibilityLabel={`${Math.round(clamped * 100)} percent of today's goal`}
     >
       <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
-        <Circle cx={size / 2} cy={size / 2} r={r} stroke={colors.primarySoft} strokeWidth={stroke} fill="none" />
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          stroke={colors.primarySoft}
+          strokeWidth={stroke}
+          fill="none"
+        />
         <Circle
           cx={size / 2}
           cy={size / 2}
@@ -293,147 +242,72 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 12,
     marginBottom: spacing.lg - 4,
   },
   headerText: {
     flex: 1,
   },
   greeting: {
-    fontSize: 22,
-    lineHeight: 28,
+    fontSize: 28,
+    lineHeight: 34,
     fontWeight: "800",
     color: colors.ink,
   },
   subtitle: {
-    fontSize: 13,
+    fontSize: 14,
     color: colors.body,
     marginTop: 2,
   },
-  iconButton: {
+  bell: {
     width: 40,
     height: 40,
     alignItems: "center",
     justifyContent: "center",
   },
-  badge: {
+  bellDot: {
     position: "absolute",
-    top: 4,
-    right: 4,
-    minWidth: 16,
-    height: 16,
-    paddingHorizontal: 3,
-    borderRadius: 8,
+    top: 7,
+    right: 9,
+    width: 9,
+    height: 9,
+    borderRadius: 5,
     backgroundColor: "#EF4444",
-    alignItems: "center",
-    justifyContent: "center",
     borderWidth: 1.5,
     borderColor: colors.background,
   },
-  badgeText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: colors.background,
-  },
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: colors.primarySoft,
     alignItems: "center",
     justifyContent: "center",
   },
   avatarText: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "800",
     color: colors.primary,
   },
-  onlineDot: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    width: 11,
-    height: 11,
-    borderRadius: 6,
-    backgroundColor: "#22C55E",
-    borderWidth: 2,
-    borderColor: colors.background,
-  },
 
-  // Banner
-  banner: {
+  // Search
+  search: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.primarySoft,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    marginBottom: spacing.lg - 4,
-    overflow: "hidden",
-  },
-  bannerText: {
-    flex: 1,
-  },
-  bannerTitle: {
-    fontSize: 20,
-    lineHeight: 25,
-    fontWeight: "800",
-    color: colors.ink,
-    marginBottom: 6,
-  },
-  bannerSubtitle: {
-    fontSize: 13,
-    color: colors.body,
-    marginBottom: 14,
-  },
-  bannerButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-start",
-    gap: 6,
-    backgroundColor: colors.ink,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: radius.pill,
-  },
-  bannerButtonPressed: {
-    opacity: 0.85,
-  },
-  bannerButtonText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: colors.background,
-  },
-  bannerArt: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    backgroundColor: colors.background,
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: spacing.sm,
-  },
-
-  // Quick actions
-  quickActions: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: spacing.lg - 4,
-  },
-  quickAction: {
-    flex: 1,
-    alignItems: "center",
-    gap: 8,
-    marginHorizontal: 4,
-    paddingVertical: 12,
+    gap: 10,
+    height: 50,
+    paddingHorizontal: 14,
     borderRadius: radius.md,
-    backgroundColor: colors.background,
     borderWidth: 1,
     borderColor: colors.border,
+    backgroundColor: "#F8F9FC",
+    marginBottom: spacing.lg - 4,
   },
-  quickActionLabel: {
-    fontSize: 12,
-    fontWeight: "700",
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
     color: colors.ink,
+    paddingVertical: 0,
   },
 
   // Sections
@@ -454,8 +328,13 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: colors.primary,
   },
+  empty: {
+    fontSize: 14,
+    color: colors.body,
+    paddingVertical: spacing.md,
+  },
 
-  // Shared card
+  // Cards
   card: {
     backgroundColor: colors.background,
     borderRadius: radius.lg,
@@ -466,12 +345,21 @@ const styles = StyleSheet.create({
   cardPressed: {
     backgroundColor: "#F8F9FC",
   },
+  deckRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    padding: 12,
+  },
   iconTile: {
     width: 48,
     height: 48,
     borderRadius: radius.md,
     alignItems: "center",
     justifyContent: "center",
+  },
+  deckText: {
+    flex: 1,
   },
   deckTitle: {
     fontSize: 15,
@@ -485,7 +373,7 @@ const styles = StyleSheet.create({
   },
 
   // Continue studying
-  continueRow: {
+  continueCard: {
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
@@ -496,15 +384,12 @@ const styles = StyleSheet.create({
   },
   progressRow: {
     flexDirection: "row",
-    gap: 4,
-    marginTop: 2,
-    marginBottom: 8,
-  },
-  progressCaption: {
-    fontSize: 12,
-    color: colors.body,
+    alignItems: "center",
+    gap: 10,
+    marginTop: 10,
   },
   progressTrack: {
+    flex: 1,
     height: 6,
     borderRadius: radius.pill,
     backgroundColor: colors.border,
@@ -513,173 +398,41 @@ const styles = StyleSheet.create({
   progressFill: {
     height: "100%",
     borderRadius: radius.pill,
+    backgroundColor: colors.primary,
   },
-  playButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  // Activity rows (recent + friends)
-  activityRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    padding: 12,
-  },
-  activityIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  activityBody: {
-    flex: 1,
-  },
-  timeText: {
+  progressCount: {
     fontSize: 12,
-    color: "#9CA3AF",
-  },
-  friendAvatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  friendInitials: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: colors.ink,
-  },
-  onlineDotSmall: {
-    position: "absolute",
-    bottom: -1,
-    right: -1,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#22C55E",
-    borderWidth: 2,
-    borderColor: colors.background,
-  },
-
-  // Goal
-  goalHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: spacing.sm,
-    marginBottom: 12,
-  },
-  goalCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    padding: 16,
-  },
-  goalStats: {
-    justifyContent: "center",
-  },
-  goalCount: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: colors.ink,
-  },
-  goalUnit: {
-    fontSize: 13,
     fontWeight: "600",
     color: colors.body,
   },
-  goalMessage: {
-    flex: 1,
+
+  // Goal
+  goalCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16,
+    marginTop: spacing.sm,
   },
-  goalMessageTitle: {
-    fontSize: 14,
-    fontWeight: "700",
+  goalTitle: {
+    fontSize: 16,
+    fontWeight: "800",
     color: colors.ink,
   },
-  goalMessageSubtitle: {
-    fontSize: 12,
+  goalRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 8,
+  },
+  goalText: {
+    fontSize: 14,
+    fontWeight: "600",
     color: colors.body,
-    marginTop: 2,
   },
   ringText: {
     fontSize: 13,
     fontWeight: "800",
     color: colors.ink,
-  },
-
-  // Stats grid
-  statsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    marginBottom: spacing.sm,
-  },
-  statCard: {
-    width: "48%",
-    alignItems: "flex-start",
-    gap: 6,
-    padding: 14,
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: colors.ink,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: colors.body,
-  },
-
-  // Recommended
-  recommendedRow: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  recommendedCard: {
-    flex: 1,
-    padding: 14,
-  },
-  recommendedTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 10,
-  },
-  studyButton: {
-    marginTop: 12,
-    paddingVertical: 10,
-    borderRadius: radius.pill,
-    alignItems: "center",
-  },
-  studyButtonText: {
-    fontSize: 13,
-    fontWeight: "700",
-  },
-
-  // Quote
-  quoteCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    backgroundColor: "#FDEEF1",
-    borderRadius: radius.lg,
-    padding: 14,
-    marginTop: spacing.sm,
-  },
-  quoteIcon: {
-    marginTop: 2,
-  },
-  quoteText: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: "600",
-    color: colors.ink,
-    lineHeight: 18,
   },
 });
