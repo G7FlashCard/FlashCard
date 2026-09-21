@@ -1,377 +1,454 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { ComponentProps } from "react";
-import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import Svg, { Circle } from "react-native-svg";
 
+import { Avatar } from "../../screens/Avatar";
+import CreatePostScreen from "../../screens/CreatePostScreen";
+import type { InitialAttach } from "../../screens/CreatePostScreen";
+import PostCard from "../../screens/PostCard";
+import {
+  CURRENT_USER,
+  removePost,
+  toggleLike,
+  toggleRepost,
+  toggleSave,
+  usePosts,
+} from "../../screens/postStore";
+import type { Post } from "../../screens/postStore";
 import { colors, radius, spacing } from "../../screens/theme";
 
-type IconName = ComponentProps<typeof Ionicons>["name"];
+type FilterKey = "foryou" | "following" | "friends" | "mine";
 
-// ---------------------------------------------------------------------------
-// Sample data. Replace with real events (quiz results, cards studied, friend
-// activity) once those are stored somewhere.
-// ---------------------------------------------------------------------------
-
-type ActivityKind = "quiz" | "study" | "friend_deck" | "streak" | "friend_joined";
-
-type Activity = {
-  id: string;
-  kind: ActivityKind;
-  title: string;
-  detail?: string;
-  when: string;
-};
-
-const ACTIVITY: Activity[] = [
-  { id: "a1", kind: "quiz", title: "You completed Biology Quiz 1", detail: "Score: 8/10", when: "2 hours ago" },
-  { id: "a2", kind: "study", title: "You studied Math Formulas", detail: "15 cards", when: "4 hours ago" },
-  { id: "a3", kind: "friend_deck", title: "Mia created a new deck English Vocabulary", when: "1 day ago" },
-  { id: "a4", kind: "streak", title: "You reached a 7-day streak!", detail: "Keep it up!", when: "2 days ago" },
-  { id: "a5", kind: "friend_joined", title: "John joined FlashLearn!", when: "2 days ago" },
+const FILTERS: { key: FilterKey; label: string }[] = [
+  { key: "foryou", label: "For You" },
+  { key: "following", label: "Following" },
+  { key: "friends", label: "Friends" },
+  { key: "mine", label: "My Posts" },
 ];
 
-const KIND_STYLE: Record<ActivityKind, { icon: IconName; color: string; tint: string }> = {
-  quiz: { icon: "book-outline", color: colors.primary, tint: colors.primaryTint },
-  study: { icon: "albums-outline", color: colors.primary, tint: colors.primaryTint },
-  friend_deck: { icon: "person-outline", color: colors.primary, tint: colors.primaryTint },
-  streak: { icon: "flame", color: colors.flame, tint: colors.flameSoft },
-  friend_joined: { icon: "person-add-outline", color: colors.primary, tint: colors.primaryTint },
+const EMPTY_TEXT: Record<FilterKey, { title: string; body: string }> = {
+  foryou: { title: "Nothing here yet", body: "Be the first to share your progress!" },
+  following: { title: "No posts from people you follow", body: "Follow more people to see their posts here." },
+  friends: { title: "No posts from friends", body: "When your friends post, you'll see it here." },
+  mine: { title: "You haven't posted yet", body: "Tap “What's on your mind?” to share your progress." },
 };
 
-const TODAY_GOAL = { done: 3, target: 5 };
+const UNREAD_NOTIFICATIONS = 3;
 
-const STREAK = {
-  days: 9,
-  week: [
-    { label: "M", done: true },
-    { label: "T", done: true },
-    { label: "W", done: true },
-    { label: "T", done: true },
-    { label: "F", done: true },
-    { label: "S", done: true },
-    { label: "S", done: false }, // today
-  ],
-};
-
-const WEEKLY_GOALS: { id: string; icon: IconName; title: string; done: number; target: number }[] = [
-  { id: "w1", icon: "albums-outline", title: "Study 5 decks", done: 3, target: 5 },
-  { id: "w2", icon: "help-circle-outline", title: "Take 3 quizzes", done: 3, target: 3 },
-  { id: "w3", icon: "layers-outline", title: "Review 100 cards", done: 64, target: 100 },
-];
-
-type TabKey = "activity" | "goals";
-
-const TABS: { key: TabKey; label: string }[] = [
-  { key: "activity", label: "Activity" },
-  { key: "goals", label: "Goals" },
-];
+const comingSoon = (feature: string) => Alert.alert(feature, "This feature is coming soon.");
 
 export default function TimelineScreen() {
-  const [tab, setTab] = useState<TabKey>("activity");
+  const posts = usePosts();
 
-  return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Timeline</Text>
+  const [filter, setFilter] = useState<FilterKey>("foryou");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState("");
 
-        <View style={styles.tabs}>
-          {TABS.map((t) => {
-            const active = t.key === tab;
-            return (
-              <Pressable
-                key={t.key}
-                onPress={() => setTab(t.key)}
-                style={styles.tab}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: active }}
-              >
-                <Text style={[styles.tabText, active && styles.tabTextActive]}>{t.label}</Text>
-                {active && <View style={styles.tabUnderline} />}
-              </Pressable>
-            );
-          })}
+  // Create Post opens as a full-screen panel over this tab (no extra route).
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [composeKey, setComposeKey] = useState(0);
+  const [composeInitial, setComposeInitial] = useState<InitialAttach>(null);
+
+  const openCompose = (initial: InitialAttach = null) => {
+    setComposeInitial(initial);
+    setComposeKey((k) => k + 1); // fresh, empty draft every time
+    setComposeOpen(true);
+  };
+
+  const list = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return [...posts]
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .filter((post) => {
+        if (filter === "mine") return post.relation === "me";
+        if (filter === "friends") return post.relation === "friend";
+        if (filter === "following") return post.relation === "friend" || post.relation === "following";
+        return true;
+      })
+      .filter(
+        (post) =>
+          !q ||
+          post.text.toLowerCase().includes(q) ||
+          post.author.toLowerCase().includes(q) ||
+          post.hashtags.some((tag) => tag.toLowerCase().includes(q))
+      );
+  }, [posts, filter, query]);
+
+  const openMenu = (post: Post) => {
+    if (post.relation === "me") {
+      Alert.alert("Your post", undefined, [
+        {
+          text: "Delete Post",
+          style: "destructive",
+          onPress: () =>
+            Alert.alert("Delete post?", "This can't be undone.", [
+              { text: "Cancel", style: "cancel" },
+              { text: "Delete", style: "destructive", onPress: () => removePost(post.id) },
+            ]),
+        },
+        { text: "Cancel", style: "cancel" },
+      ]);
+      return;
+    }
+    Alert.alert(post.author, undefined, [
+      { text: "Hide Post", onPress: () => removePost(post.id) },
+      { text: "Report Post", onPress: () => comingSoon("Report Post") },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  };
+
+  const hasSearch = query.trim().length > 0;
+  const empty = hasSearch
+    ? { title: "No results", body: `No posts match "${query.trim()}".` }
+    : EMPTY_TEXT[filter];
+
+  const feedHeader = (
+    <View>
+      {/* Composer */}
+      <View style={styles.composer}>
+        <View style={styles.composerTop}>
+          <Avatar name={CURRENT_USER} size={52} />
+          <Pressable
+            onPress={() => openCompose()}
+            style={styles.composerInput}
+            accessibilityRole="button"
+            accessibilityLabel="Create a post"
+          >
+            <Text style={styles.composerPlaceholder}>What's on your mind?</Text>
+          </Pressable>
+        </View>
+        <View style={styles.quickRow}>
+          <QuickAction
+            icon="image-outline"
+            color="#22A559"
+            label="Photo"
+            onPress={() => comingSoon("Photo/Video")}
+          />
+          <QuickAction
+            icon="book-outline"
+            color={colors.primary}
+            label="Study"
+            onPress={() => openCompose("progress")}
+          />
+          <QuickAction
+            icon="trophy"
+            color="#F5A623"
+            label="Achievement"
+            onPress={() => openCompose("achievement")}
+          />
+          <QuickAction
+            icon="ellipsis-horizontal"
+            color={colors.primary}
+            label="More"
+            onPress={() => openCompose()}
+          />
         </View>
       </View>
 
-      {tab === "activity" ? <ActivityFeed /> : <GoalsView />}
+      {/* Filters */}
+      <View style={styles.chips}>
+        {FILTERS.map((f) => {
+          const active = f.key === filter;
+          return (
+            <Pressable
+              key={f.key}
+              onPress={() => setFilter(f.key)}
+              style={[styles.chip, active && styles.chipActive]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+            >
+              <Text style={[styles.chipText, active && styles.chipTextActive]} numberOfLines={1}>
+                {f.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+
+  return (
+    <SafeAreaView style={styles.container} edges={["top"]}>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerText}>
+          <Text style={styles.title}>Timeline</Text>
+          <Text style={styles.subtitle}>Share your progress. Inspire others. 📚</Text>
+        </View>
+        <Pressable
+          onPress={() => {
+            setSearchOpen((open) => !open);
+            if (searchOpen) setQuery("");
+          }}
+          hitSlop={10}
+          style={styles.iconButton}
+          accessibilityRole="button"
+          accessibilityLabel="Search posts"
+        >
+          <Ionicons name={searchOpen ? "close" : "search-outline"} size={26} color={colors.ink} />
+        </Pressable>
+        <Pressable
+          onPress={() => comingSoon("Notifications")}
+          hitSlop={10}
+          style={styles.iconButton}
+          accessibilityRole="button"
+          accessibilityLabel={`Notifications, ${UNREAD_NOTIFICATIONS} new`}
+        >
+          <Ionicons name="notifications-outline" size={26} color={colors.ink} />
+          {UNREAD_NOTIFICATIONS > 0 && (
+            <View style={styles.bellBadge}>
+              <Text style={styles.bellBadgeText}>{UNREAD_NOTIFICATIONS}</Text>
+            </View>
+          )}
+        </Pressable>
+      </View>
+
+      {searchOpen && (
+        <View style={styles.search}>
+          <Ionicons name="search-outline" size={20} color={colors.body} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search posts, people, #tags"
+            placeholderTextColor="#9CA3AF"
+            value={query}
+            onChangeText={setQuery}
+            autoFocus
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="search"
+          />
+          {query.length > 0 && (
+            <Pressable onPress={() => setQuery("")} hitSlop={10} accessibilityLabel="Clear search">
+              <Ionicons name="close-circle" size={18} color="#9CA3AF" />
+            </Pressable>
+          )}
+        </View>
+      )}
+
+      <FlatList
+        data={list}
+        keyExtractor={(post) => post.id}
+        renderItem={({ item }) => (
+          <PostCard
+            post={item}
+            onLike={() => toggleLike(item.id)}
+            onRepost={() => toggleRepost(item.id)}
+            onSave={() => toggleSave(item.id)}
+            onComment={() => comingSoon("Comments")}
+            onMenu={() => openMenu(item)}
+          />
+        )}
+        ListHeaderComponent={feedHeader}
+        ListEmptyComponent={
+          <View style={styles.empty}>
+            <View style={styles.emptyIcon}>
+              <Ionicons name="chatbubbles-outline" size={30} color={colors.primary} />
+            </View>
+            <Text style={styles.emptyTitle}>{empty.title}</Text>
+            <Text style={styles.emptyBody}>{empty.body}</Text>
+          </View>
+        }
+        contentContainerStyle={styles.feed}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+      />
+
+      <Modal
+        visible={composeOpen}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        statusBarTranslucent
+        onRequestClose={() => setComposeOpen(false)}
+      >
+        <CreatePostScreen
+          key={composeKey}
+          initialAttach={composeInitial}
+          onClose={() => setComposeOpen(false)}
+        />
+      </Modal>
     </SafeAreaView>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Activity tab
-// ---------------------------------------------------------------------------
-
-function ActivityFeed() {
-  return (
-    <FlatList
-      data={ACTIVITY}
-      keyExtractor={(item) => item.id}
-      renderItem={({ item }) => <ActivityRow item={item} />}
-      contentContainerStyle={styles.feed}
-      showsVerticalScrollIndicator={false}
-      ListEmptyComponent={
-        <View style={styles.empty}>
-          <View style={styles.emptyIcon}>
-            <Ionicons name="time-outline" size={30} color={colors.primary} />
-          </View>
-          <Text style={styles.emptyTitle}>No activity yet</Text>
-          <Text style={styles.emptyBody}>Study a deck or take a quiz and it will show up here.</Text>
-        </View>
-      }
-    />
-  );
-}
-
-function ActivityRow({ item }: { item: Activity }) {
-  const style = KIND_STYLE[item.kind];
-  const meta = item.detail ? `${item.detail} • ${item.when}` : item.when;
-
-  return (
-    <View style={styles.activityRow}>
-      <View style={[styles.activityIcon, { backgroundColor: style.tint }]}>
-        <Ionicons name={style.icon} size={22} color={style.color} />
-      </View>
-      <View style={styles.activityText}>
-        <Text style={styles.activityTitle}>{item.title}</Text>
-        <Text style={styles.activityMeta}>{meta}</Text>
-      </View>
-    </View>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Goals tab
-// ---------------------------------------------------------------------------
-
-function GoalsView() {
-  const remaining = Math.max(TODAY_GOAL.target - TODAY_GOAL.done, 0);
-
-  return (
-    <ScrollView contentContainerStyle={styles.goals} showsVerticalScrollIndicator={false}>
-      {/* Streak */}
-      <View style={styles.card}>
-        <View style={styles.streakHeader}>
-          <View style={styles.streakIcon}>
-            <Ionicons name="flame" size={26} color={colors.flame} />
-          </View>
-          <View style={styles.flex}>
-            <Text style={styles.streakTitle}>{STREAK.days}-day streak</Text>
-            <Text style={styles.cardMeta}>Study today to keep it going.</Text>
-          </View>
-        </View>
-
-        <View style={styles.weekRow}>
-          {STREAK.week.map((day, i) => (
-            <View key={i} style={styles.weekDay}>
-              <View style={[styles.weekDot, day.done && styles.weekDotDone]}>
-                {day.done && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
-              </View>
-              <Text style={styles.weekLabel}>{day.label}</Text>
-            </View>
-          ))}
-        </View>
-      </View>
-
-      {/* Today's goal */}
-      <View style={[styles.card, styles.todayCard]}>
-        <View style={styles.flex}>
-          <Text style={styles.cardTitle}>Today's Goal</Text>
-          <View style={styles.goalLine}>
-            <Ionicons name="flame" size={20} color={colors.flame} />
-            <Text style={styles.goalLineText}>
-              {TODAY_GOAL.done}/{TODAY_GOAL.target} decks
-            </Text>
-          </View>
-          <Text style={styles.cardMeta}>
-            {remaining === 0
-              ? "You hit today's goal. Nice work!"
-              : `${remaining} more ${remaining === 1 ? "deck" : "decks"} to reach your goal.`}
-          </Text>
-        </View>
-        <ProgressRing progress={TODAY_GOAL.done / TODAY_GOAL.target} />
-      </View>
-
-      {/* Weekly goals */}
-      <Text style={styles.sectionTitle}>This Week</Text>
-      {WEEKLY_GOALS.map((goal) => {
-        const complete = goal.done >= goal.target;
-        const ratio = Math.min(goal.done / goal.target, 1);
-        return (
-          <View key={goal.id} style={styles.card}>
-            <View style={styles.weeklyHeader}>
-              <View style={[styles.weeklyIcon, complete && styles.weeklyIconDone]}>
-                <Ionicons
-                  name={complete ? "checkmark" : goal.icon}
-                  size={20}
-                  color={complete ? colors.success : colors.primary}
-                />
-              </View>
-              <Text style={styles.weeklyTitle}>{goal.title}</Text>
-              <Text style={styles.weeklyCount}>
-                {goal.done}/{goal.target}
-              </Text>
-            </View>
-            <View
-              style={styles.track}
-              accessibilityRole="progressbar"
-              accessibilityValue={{ min: 0, max: goal.target, now: Math.min(goal.done, goal.target) }}
-            >
-              <View
-                style={[
-                  styles.fill,
-                  { width: `${ratio * 100}%` },
-                  complete && { backgroundColor: colors.success },
-                ]}
-              />
-            </View>
-          </View>
-        );
-      })}
-    </ScrollView>
-  );
-}
-
-function ProgressRing({
-  progress,
-  size = 64,
-  stroke = 8,
+function QuickAction({
+  icon,
+  color,
+  label,
+  onPress,
 }: {
-  progress: number;
-  size?: number;
-  stroke?: number;
+  icon: ComponentProps<typeof Ionicons>["name"];
+  color: string;
+  label: string;
+  onPress: () => void;
 }) {
-  const r = (size - stroke) / 2;
-  const circumference = 2 * Math.PI * r;
-  const clamped = Math.min(Math.max(progress, 0), 1);
-
   return (
-    <View
-      style={{ width: size, height: size, alignItems: "center", justifyContent: "center" }}
-      accessibilityLabel={`${Math.round(clamped * 100)} percent of today's goal`}
-    >
-      <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          stroke={colors.primarySoft}
-          strokeWidth={stroke}
-          fill="none"
-        />
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          stroke={colors.primary}
-          strokeWidth={stroke}
-          fill="none"
-          strokeLinecap="round"
-          strokeDasharray={`${circumference}`}
-          strokeDashoffset={circumference * (1 - clamped)}
-          rotation={-90}
-          origin={`${size / 2}, ${size / 2}`}
-        />
-      </Svg>
-      <Text style={styles.ringText}>{Math.round(clamped * 100)}%</Text>
-    </View>
+    <Pressable onPress={onPress} style={styles.quick} accessibilityRole="button" accessibilityLabel={label}>
+      <Ionicons name={icon} size={24} color={color} />
+      <Text style={styles.quickLabel}>{label}</Text>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-  },
   container: {
     flex: 1,
     backgroundColor: colors.background,
   },
 
-  // Header + tabs
+  // Header
   header: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
     paddingHorizontal: spacing.lg - 4,
     paddingTop: spacing.md,
+    paddingBottom: spacing.md,
+  },
+  headerText: {
+    flex: 1,
   },
   title: {
-    fontSize: 28,
-    lineHeight: 34,
+    fontSize: 32,
+    lineHeight: 38,
     fontWeight: "800",
     color: colors.ink,
-    marginBottom: spacing.md,
   },
-  tabs: {
-    flexDirection: "row",
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  tab: {
-    flex: 1,
-    alignItems: "center",
-    paddingVertical: 12,
-  },
-  tabText: {
+  subtitle: {
     fontSize: 14,
-    fontWeight: "600",
-    color: colors.body,
-  },
-  tabTextActive: {
-    color: colors.primary,
-    fontWeight: "700",
-  },
-  tabUnderline: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: -1,
-    height: 2,
-    borderRadius: 1,
-    backgroundColor: colors.primary,
-  },
-
-  // Activity
-  feed: {
-    flexGrow: 1,
-    paddingHorizontal: spacing.lg - 4,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.lg,
-  },
-  activityRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F1F2F6",
-  },
-  activityIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  activityText: {
-    flex: 1,
-  },
-  activityTitle: {
-    fontSize: 15,
-    lineHeight: 21,
-    fontWeight: "700",
-    color: colors.ink,
-  },
-  activityMeta: {
-    fontSize: 13,
     color: colors.body,
     marginTop: 2,
   },
-  empty: {
-    flex: 1,
+  iconButton: {
+    width: 42,
+    height: 42,
+    marginTop: 2,
     alignItems: "center",
     justifyContent: "center",
+  },
+  bellBadge: {
+    position: "absolute",
+    top: 2,
+    right: 0,
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 5,
+    borderRadius: 10,
+    backgroundColor: "#EF4444",
+    borderWidth: 2,
+    borderColor: colors.background,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  bellBadgeText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#FFFFFF",
+  },
+  search: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    height: 48,
+    marginHorizontal: spacing.lg - 4,
+    marginBottom: spacing.md,
+    paddingHorizontal: 14,
+    borderRadius: radius.lg,
+    backgroundColor: "#F1F4FE",
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: colors.ink,
+    paddingVertical: 0,
+  },
+
+  // Feed
+  feed: {
+    flexGrow: 1,
+    paddingHorizontal: spacing.lg - 4,
+    paddingBottom: spacing.lg,
+  },
+
+  // Composer
+  composer: {
+    padding: 14,
+    marginBottom: spacing.md,
+    borderRadius: radius.lg + 4,
+    backgroundColor: "#EEF2FF",
+  },
+  composerTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  composerInput: {
+    flex: 1,
+    height: 52,
+    paddingHorizontal: 16,
+    borderRadius: radius.md,
+    backgroundColor: colors.background,
+    justifyContent: "center",
+  },
+  composerPlaceholder: {
+    fontSize: 16,
+    color: "#8A94B0",
+  },
+  quickRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 14,
+    paddingHorizontal: 4,
+  },
+  quick: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 4,
+  },
+  quickLabel: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: colors.ink,
+  },
+
+  // Filter chips
+  chips: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: spacing.md,
+  },
+  chip: {
+    flex: 1,
+    height: 40,
+    borderRadius: radius.pill,
+    backgroundColor: "#F1F4FE",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 6,
+  },
+  chipActive: {
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  chipText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.body,
+  },
+  chipTextActive: {
+    color: colors.primary,
+    fontWeight: "800",
+  },
+
+  // Empty state
+  empty: {
+    alignItems: "center",
+    paddingVertical: spacing.xl,
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xl * 2,
   },
   emptyIcon: {
     width: 68,
@@ -386,6 +463,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "800",
     color: colors.ink,
+    textAlign: "center",
   },
   emptyBody: {
     fontSize: 14,
@@ -393,147 +471,5 @@ const styles = StyleSheet.create({
     color: colors.body,
     textAlign: "center",
     marginTop: spacing.sm,
-  },
-
-  // Goals
-  goals: {
-    paddingHorizontal: spacing.lg - 4,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.lg,
-  },
-  card: {
-    padding: 16,
-    marginBottom: 12,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: colors.ink,
-  },
-  cardMeta: {
-    fontSize: 13,
-    lineHeight: 19,
-    color: colors.body,
-    marginTop: 4,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: colors.ink,
-    marginTop: spacing.sm,
-    marginBottom: 12,
-  },
-
-  // Streak
-  streakHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  streakIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.flameSoft,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  streakTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: colors.ink,
-  },
-  weekRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: spacing.md,
-  },
-  weekDay: {
-    alignItems: "center",
-    gap: 6,
-  },
-  weekDot: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#F1F2F6",
-  },
-  weekDotDone: {
-    backgroundColor: colors.primary,
-  },
-  weekLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: colors.body,
-  },
-
-  // Today's goal
-  todayCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-  },
-  goalLine: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginTop: 8,
-  },
-  goalLineText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: colors.ink,
-  },
-  ringText: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: colors.ink,
-  },
-
-  // Weekly goals
-  weeklyHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 12,
-  },
-  weeklyIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: radius.md,
-    backgroundColor: colors.primaryTint,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  weeklyIconDone: {
-    backgroundColor: "#DDF5E7",
-  },
-  weeklyTitle: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: "700",
-    color: colors.ink,
-  },
-  weeklyCount: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: colors.body,
-  },
-  track: {
-    height: 6,
-    borderRadius: radius.pill,
-    backgroundColor: colors.border,
-    overflow: "hidden",
-  },
-  fill: {
-    height: "100%",
-    borderRadius: radius.pill,
-    backgroundColor: colors.primary,
   },
 });
