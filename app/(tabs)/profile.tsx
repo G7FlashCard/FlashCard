@@ -33,9 +33,9 @@ type Profile = {
 };
 
 const INITIAL_PROFILE: Profile = {
-  name: "Nano Ba Kit Na GRoup?? Basta Group Something Kit",
-  username: "april.lentejas",
-  bio: "Keep learning, keep growing! ✨",
+  name: "Yasmien Mingo",
+  username: "Mingmingmeow",
+  bio: "Keep learning, keep growing!",
 };
 
 const FOLLOWERS = 248;
@@ -71,16 +71,6 @@ export default function ProfileScreen() {
 
   const favorites = decks.filter((deck) => deck.favorite);
 
-  // const badges: Badge[] = [
-  //   { key: "first", label: "First Deck", icon: "albums-outline", earned: decks.length >= 1 },
-  //   { key: "streak", label: "7-Day Streak", icon: "flame-outline", earned: true },
-  //   { key: "quiz", label: "Quiz Whiz", icon: "trophy-outline", earned: true },
-  //   { key: "book", label: "Bookworm", icon: "book-outline", earned: false },
-  //   { key: "social", label: "Social Butterfly", icon: "people-outline", earned: false },
-  //   { key: "perfect", label: "Perfect Score", icon: "star-outline", earned: false },
-  // ];
-
-  // 3 columns filling the screen width.
   const sidePadding = spacing.lg - 4;
   const gap = 6;
   const tileSize = Math.floor((width - sidePadding * 2 - gap * 2) / 3);
