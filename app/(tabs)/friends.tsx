@@ -11,8 +11,10 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
+import { getOrCreateDirect } from "../../screens/chatStore";
 import { colors, radius, spacing } from "../../screens/theme";
 
 // ---------------------------------------------------------------------------
@@ -106,8 +108,9 @@ export default function FriendsScreen() {
 
   // --- actions --------------------------------------------------------------
 
+  // Opens your chat with this person (starting one if it doesn't exist yet).
   const message = (person: Person) =>
-    Alert.alert("Messages", `Messaging ${person.name} isn't available yet.`);
+    router.push(`/chat/${getOrCreateDirect(person.name)}` as any);
 
   const acceptRequest = (person: Person) => {
     setRequests((prev) => prev.filter((p) => p.id !== person.id));
