@@ -110,7 +110,7 @@ export default function FriendsScreen() {
 
   // Opens your chat with this person (starting one if it doesn't exist yet).
   const message = (person: Person) =>
-    router.push(`/chat/${getOrCreateDirect(person.name)}` as any);
+    router.push(`/chat?id=${getOrCreateDirect(person.name)}` as any);
 
   const acceptRequest = (person: Person) => {
     setRequests((prev) => prev.filter((p) => p.id !== person.id));
