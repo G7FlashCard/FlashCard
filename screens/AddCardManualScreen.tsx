@@ -146,14 +146,6 @@ export default function AddCardManualScreen({ deckId }: Props) {
             textAlignVertical="top"
             autoFocus
           />
-
-          <Pressable
-            style={({ pressed }) => [styles.imageButton, pressed && styles.pressedFade]}
-            accessibilityRole="button"
-          >
-            <Ionicons name="image-outline" size={18} color={colors.primary} />
-            <Text style={styles.imageButtonText}>Add Image (Optional)</Text>
-          </Pressable>
         </ScrollView>
 
         <View style={styles.footer}>
@@ -279,24 +271,7 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     color: colors.ink,
   },
-  imageButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    alignSelf: "flex-start",
-    marginTop: spacing.md,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  imageButtonText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: colors.primary,
-  },
-
+  
   // Footer
   footer: {
     padding: spacing.lg - 4,
