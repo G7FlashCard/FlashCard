@@ -6,16 +6,23 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Speech from "expo-speech";
 
 import { toggleFavorite, useCards } from "./cardStore";
-import { useDeck } from "./deckStore";
+import { useDeck } from "./deckRepo";
 import { colors, radius, spacing } from "./theme";
 
 type Props = {
   deckId: string;
+  /**
+   * Called when the person closes the screen or finishes the last card.
+   * Leave it out if this screen is opened as its own route (it then goes back).
+   */
+  onClose?: () => void;
 };
 
-export default function FlashcardStudyScreen({ deckId }: Props) {
+export default function FlashcardStudyScreen({ deckId, onClose }: Props) {
   const deck = useDeck(deckId);
   const cards = useCards(deckId);
+
+  const close = onClose ?? (() => router.back());
 
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
@@ -57,7 +64,7 @@ export default function FlashcardStudyScreen({ deckId }: Props) {
 
   const goNext = () => {
     if (isLast) {
-      router.back();
+      close();
       return;
     }
     Speech.stop();
@@ -81,7 +88,13 @@ export default function FlashcardStudyScreen({ deckId }: Props) {
     return (
       <SafeAreaView style={styles.container} edges={["top"]}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} hitSlop={10} style={styles.headerButton} accessibilityRole="button">
+          <Pressable
+            onPress={close}
+            hitSlop={10}
+            style={styles.headerButton}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+          >
             <Ionicons name="close" size={26} color={colors.ink} />
           </Pressable>
         </View>
@@ -97,7 +110,7 @@ export default function FlashcardStudyScreen({ deckId }: Props) {
     <SafeAreaView style={styles.container} edges={["top"]}>
       <View style={styles.header}>
         <Pressable
-          onPress={() => router.back()}
+          onPress={close}
           hitSlop={10}
           style={styles.headerButton}
           accessibilityRole="button"
@@ -225,6 +238,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
   },
   headerButton: {
+    marginTop: 2,
     width: 36,
     height: 36,
     alignItems: "center",
