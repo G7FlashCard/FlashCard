@@ -62,7 +62,7 @@ export default function MessagesScreen() {
       .filter((c) => !q || c.name.toLowerCase().includes(q) || previewOf(c).toLowerCase().includes(q));
   }, [conversations, query, filter]);
 
-  const openChat = (id: string) => router.push(`/chat/${id}` as any);
+  const openChat = (id: string) => router.push(`/chat?id=${id}` as any);
 
   const confirmDelete = (convo: Conversation) =>
     Alert.alert("Delete chat?", `Your conversation with ${convo.name} will be deleted.`, [
