@@ -6,6 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { colors, radius, spacing } from "../../screens/theme";
 import { duplicateDeck, removeDeck, updateDeck, useDeck } from "../../screens/deckRepo";
+import FlashcardStudyScreen from "../../screens/FlashcardStudyScreen";
 import type { IconName } from "../../screens/deckRepo";
 
 type SheetItem = {
@@ -23,6 +24,7 @@ export default function DeckOptionsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const deck = useDeck(id);
   const [sheet, setSheet] = useState<"edit" | "more" | null>(null);
+  const [studyOpen, setStudyOpen] = useState(false);
 
   const goBack = () => {
     if (router.canGoBack()) router.back();
@@ -92,7 +94,19 @@ export default function DeckOptionsScreen() {
     deleteItem,
   ];
 
-
+  const moreItems: SheetItem[] = [
+    {
+      key: "favorite",
+      label: deck.favorite ? "Remove from Favorites" : "Add to Favorites",
+      icon: deck.favorite ? "heart" : "heart-outline",
+      onPress: () => updateDeck(deck.id, { favorite: !deck.favorite }),
+    },
+    { key: "export", label: "Export Deck", icon: "download-outline", onPress: () => comingSoon("Export Deck") },
+    { key: "print", label: "Print Deck", icon: "print-outline", onPress: () => comingSoon("Print Deck") },
+    { key: "copy", label: "Make a Copy", icon: "copy-outline", onPress: duplicate },
+    { key: "folder", label: "Move to Folder", icon: "folder-outline", onPress: () => comingSoon("Move to Folder") },
+    deleteItem,
+  ];
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -124,10 +138,9 @@ export default function DeckOptionsScreen() {
 
         {/* Quick actions */}
         <View style={styles.actions}>
-          <ActionButton label="Study" icon="play" variant="primary" onPress={() => comingSoon("Study")} />
+          <ActionButton label="Study" icon="play" variant="primary" onPress={() => setStudyOpen(true)} />
           <ActionButton label="Quiz" icon="help" variant="dark" onPress={startQuiz} />
           <ActionButton label="Edit" icon="pencil-outline" variant="light" onPress={() => setSheet("edit")} />
-         
         </View>
 
         {/* List */}
@@ -135,10 +148,9 @@ export default function DeckOptionsScreen() {
           icon="albums-outline"
           label="Flashcards"
           meta={`${deck.cardCount} cards`}
-          onPress={() => comingSoon("Flashcards")}
+          onPress={() => setStudyOpen(true)}
         />
         <NavRow icon="stats-chart-outline" label="Quiz Results" onPress={() => comingSoon("Quiz Results")} />
-        {/* <NavRow icon="bar-chart-outline" label="Statistics" onPress={() => comingSoon("Statistics")} /> */}
         <NavRow icon="people-outline" label="Share Deck" onPress={() => comingSoon("Share Deck")} />
         <NavRow icon="trash-outline" label="Delete Deck" destructive onPress={confirmDelete} />
       </ScrollView>
@@ -149,7 +161,23 @@ export default function DeckOptionsScreen() {
         items={editItems}
         onClose={() => setSheet(null)}
       />
+      <ActionSheet
+        visible={sheet === "more"}
+        title="More Options"
+        items={moreItems}
+        onClose={() => setSheet(null)}
+      />
 
+      {/* Study opens as a full-screen panel over this page (no extra route). */}
+      <Modal
+        visible={studyOpen}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        statusBarTranslucent
+        onRequestClose={() => setStudyOpen(false)}
+      >
+        <FlashcardStudyScreen deckId={deck.id} onClose={() => setStudyOpen(false)} />
+      </Modal>
     </SafeAreaView>
   );
 }
