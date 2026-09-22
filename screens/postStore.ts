@@ -2,7 +2,7 @@ import { useSyncExternalStore } from "react";
 
 import type { IconName } from "./deckRepo";
 
-export const CURRENT_USER = "April Lentejas";
+export const CURRENT_USER = "Yasmien Mingo";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -58,7 +58,7 @@ export type Post = {
   stats?: PostStats;
   achievement?: string;
   isQuestion?: boolean;
-  images: number; // placeholder photo count (sample posts only)
+  images: number; 
   likes: number;
   liked: boolean;
   comments: number;
@@ -81,8 +81,7 @@ export type NewPost = {
 };
 
 // ---------------------------------------------------------------------------
-// Sample data + in-memory store (resets when the app restarts). Swap the
-// internals for a backend later; the screens won't need to change.
+// Sample Data Post Online
 // ---------------------------------------------------------------------------
 
 const H = 3_600_000;
@@ -109,68 +108,36 @@ function makePost(
 let posts: Post[] = [
   makePost({
     id: "p1",
-    author: "Alex Cruz",
+    author: "April Lentejas",
     relation: "friend",
     createdAt: ago(2 * H),
-    text: "Finally finished my Biology notes! 🧬\nConsistency really pays off.",
-    images: 2,
-    hashtags: ["#Biology"],
+    text: "kapoy so much, karuyag ko nala ma baby:(",
+    images: 0,
+    hashtags: ["#KAPOY", "#STRESSED"],
     likes: 24,
     comments: 5,
     reposts: 2,
   }),
   makePost({
     id: "p2",
-    author: "Sophie Tan",
+    author: "Marc Cabili",
     relation: "friend",
     createdAt: ago(5 * H),
-    text: "Small progress today, but still progress! 💪\nReviewed 50 cards and got 85% on my quiz. Proud of myself! ✨",
-    stats: { cards: 50, quiz: 85, streak: 7 },
-    hashtags: ["#StudyGram", "#Progress", "#KeepGoing"],
+    text: "miss you bb:(",
+    hashtags: ["#imysm"],
     likes: 18,
     comments: 3,
   }),
   makePost({
     id: "p3",
-    author: "Mia Santos",
+    author: "Kent Ferrer",
     relation: "friend",
     createdAt: ago(26 * H),
-    text: "Anyone here taking Math? I'm having a hard time with integration. Can someone explain this? 😅",
+    text: "Pakupya la assignment, please:(",
     isQuestion: true,
-    hashtags: ["#Math"],
+    hashtags: ["#KaySirVentures:("],
     likes: 9,
     comments: 6,
-  }),
-  makePost({
-    id: "p4",
-    author: "John Reyes",
-    relation: "following",
-    createdAt: ago(50 * H),
-    text: "Just finished building my Biology deck. Feel free to use it for your review!",
-    deck: {
-      id: "1",
-      title: "Biology",
-      cardCount: 24,
-      icon: "leaf-outline",
-      color: "#22C55E",
-      tint: "#E7FBEE",
-    },
-    hashtags: ["#Biology", "#Flashcards"],
-    likes: 31,
-    comments: 4,
-    reposts: 7,
-  }),
-  makePost({
-    id: "p5",
-    author: "Priya Patel",
-    relation: "other",
-    createdAt: ago(74 * H),
-    text: "Hit a 30-day streak today! Small steps really do add up. 🔥",
-    achievement: "30-Day Streak",
-    hashtags: ["#KeepGoing"],
-    likes: 52,
-    comments: 8,
-    reposts: 3,
   }),
 ];
 
