@@ -74,7 +74,7 @@ let conversations: Conversation[] = [
     online: false,
     muted: true,
     unread: 0,
-    messages: [msg("kent Hatdog", "Pa kupya mga bossing sa assignment :(", at(1, 17, 2)),
+    messages: [msg("kent Ferrer", "Pa kupya mga bossing sa assignment :(", at(1, 17, 2)),
       msg("April Lentejas", "dire gad ak", at (5, 0, 5)),
       msg("Marc Cabili", "adi kupyaha", at (5, 0, 7)),
     ],
