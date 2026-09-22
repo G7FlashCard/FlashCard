@@ -21,12 +21,6 @@ export type Conversation = {
   messages: ChatMessage[];
 };
 
-// ---------------------------------------------------------------------------
-// Sample data + in-memory store shared by the Messages tab, the chat screen
-// and the Friends tab. It resets when the app restarts. Replace the internals
-// with a real backend / realtime service later; screens won't need to change.
-// ---------------------------------------------------------------------------
-
 function at(daysAgo: number, hour: number, minute: number) {
   const d = new Date();
   d.setDate(d.getDate() - daysAgo);
@@ -59,38 +53,20 @@ let conversations: Conversation[] = [
   makeConversation({
     id: "c1",
     kind: "direct",
-    name: "Mia Santos",
+    name: "Marc Cabili",
     online: true,
     muted: false,
     unread: 2,
     messages: [
-      msg("Mia Santos", "Hey April! 👋", at(0, 9, 12)),
-      msg("Mia Santos", "Are you ready for the Biology quiz tomorrow?", at(0, 9, 12)),
-      msg(ME, "Hi Mia! I'm reviewing the flashcards right now.", at(0, 9, 15)),
-      msg("Mia Santos", "Nice! Want to study together later?", at(0, 9, 16)),
+      msg("Marc Cabili", "Hey Yasmien! 👋", at(0, 9, 12)),
+      msg("Marc Cabili", "Are you ready for the Biology quiz tomorrow?", at(0, 9, 12)),
+      msg(ME, "Hi Marc! I'm reviewing the flashcards right now.", at(0, 9, 15)),
+      msg("Marc Cabili", "Nice! Want to study together later?", at(0, 9, 16)),
       msg(ME, "Sure! What time?", at(0, 9, 16)),
-      msg("Mia Santos", "How about 7 PM? We can do a quick review and take a practice quiz.", at(0, 9, 17)),
+      msg("Marc Cabili", "How about 7 PM? We can do a quick review and take a practice quiz.", at(0, 9, 17)),
       msg(ME, "Sounds good! I'll be there. 😊", at(0, 9, 18)),
-      msg("Mia Santos", "Good luck on your quiz! You got this! 💪", at(0, 10, 24)),
+      msg("Marc Cabili", "Good luck on your quiz! You got this! 💪", at(0, 10, 24)),
     ],
-  }),
-  makeConversation({
-    id: "c2",
-    kind: "direct",
-    name: "Alex Cruz",
-    online: true,
-    muted: false,
-    unread: 1,
-    messages: [msg("Alex Cruz", "Wanna study together later?", at(0, 9, 18))],
-  }),
-  makeConversation({
-    id: "c3",
-    kind: "direct",
-    name: "Sophie Tan",
-    online: false,
-    muted: false,
-    unread: 0,
-    messages: [msg("Sophie Tan", "Sent a photo", at(1, 18, 40))],
   }),
   makeConversation({
     id: "c4",
@@ -103,52 +79,19 @@ let conversations: Conversation[] = [
     messages: [msg("John Reyes", "Can someone share their notes?", at(1, 17, 2))],
   }),
   makeConversation({
-    id: "c5",
-    kind: "direct",
-    name: "John Reyes",
-    online: false,
-    muted: false,
-    unread: 0,
-    messages: [msg("John Reyes", "Thanks for the flashcards!", at(3, 15, 30))],
-  }),
-  makeConversation({
-    id: "c6",
-    kind: "direct",
-    name: "Daniel Kim",
-    online: false,
-    muted: false,
-    unread: 0,
-    messages: [msg("Daniel Kim", "Let's review Math later.", at(3, 11, 5))],
-  }),
-  makeConversation({
-    id: "c7",
-    kind: "direct",
-    name: "Lara Garcia",
-    online: false,
-    muted: false,
-    unread: 0,
-    messages: [msg("Lara Garcia", "Same here!", at(4, 20, 12))],
-  }),
-  makeConversation({
     id: "c8",
     kind: "direct",
-    name: "Mark Rivera",
+    name: "April Lentejas",
     online: false,
     muted: false,
     unread: 0,
-    messages: [msg("Mark Rivera", "Okay, noted!", at(4, 8, 45))],
+    messages: [msg("April Lentejas", "Okay, noted!", at(4, 8, 45))],
   }),
 ];
 
-/** People you can start a new conversation with. */
 export const CONTACTS = [
-  "Mia Santos",
-  "Alex Cruz",
-  "Sophie Tan",
-  "John Reyes",
-  "Daniel Kim",
-  "Lara Garcia",
-  "Mark Rivera",
+  "Marc Cabili",
+  "April Lentejas",
 ];
 
 const listeners = new Set<() => void>();
