@@ -143,15 +143,6 @@ export default function ProfileScreen() {
         <Text style={styles.name}>{profile.name}</Text>
         {profile.bio.length > 0 && <Text style={styles.bio}>{profile.bio}</Text>}
         <View style={styles.tags}>
-          <View style={styles.tag}>
-            <Ionicons name="school-outline" size={15} color={colors.body} />
-            <Text style={styles.tagText}>Student</Text>
-          </View>
-          <View style={styles.tagDivider} />
-          <View style={styles.tag}>
-            <Ionicons name="library-outline" size={15} color={colors.body} />
-            <Text style={styles.tagText}>Lifelong Learner</Text>
-          </View>
         </View>
 
         {/* Edit profile */}
