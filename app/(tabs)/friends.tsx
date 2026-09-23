@@ -33,22 +33,21 @@ type Person = {
 };
 
 const INITIAL_FRIENDS: Person[] = [
-  { id: "f1", name: "Mia Santos", username: "mia.santos", presence: "online", mutual: 4 },
-  { id: "f2", name: "Alex Cruz", username: "alexcruz", presence: "online", mutual: 2 },
-  { id: "f3", name: "John Reyes", username: "johnreyes", presence: "studying", mutual: 6 },
-  { id: "f4", name: "Sophie Tan", username: "sophietan", presence: "offline", mutual: 1 },
-  { id: "f5", name: "Daniel Kim", username: "danielkim", presence: "offline", mutual: 3 },
+  { id: "f1", name: "April Lentejas", username: "april.lentejas", presence: "online", mutual: 4 },
+  { id: "f2", name: "Marc Cabili", username: "marc.cabili", presence: "online", mutual: 2 },
+  { id: "f3", name: "Kent Ferrer", username: "kent.ferrer", presence: "studying", mutual: 6 },
+  { id: "f4", name: "John Ashley Pedimonte", username: "john.ashley.pedimonte", presence: "offline", mutual: 1 },
 ];
 
 const INITIAL_REQUESTS: Person[] = [
-  { id: "r1", name: "Chloe Nguyen", username: "chloen", presence: "offline", mutual: 2 },
-  { id: "r2", name: "Marcus Lee", username: "marcuslee", presence: "offline", mutual: 5 },
+  { id: "r1", name: "Rina Relova", username: "rina.relova", presence: "offline", mutual: 2 },
+  { id: "r2", name: "Nelzon Macabidang", username: "nelzon.macabidang", presence: "offline", mutual: 5 },
 ];
 
 const SUGGESTIONS: Person[] = [
-  { id: "s1", name: "Priya Patel", username: "priyap", presence: "offline", mutual: 3 },
-  { id: "s2", name: "Lucas Silva", username: "lucas.silva", presence: "offline", mutual: 2 },
-  { id: "s3", name: "Emma Wilson", username: "emmaw", presence: "offline", mutual: 1 },
+  { id: "s1", name: "Khaila Mae Ruiz", username: "khaila.mae.ruiz", presence: "offline", mutual: 3 },
+  { id: "s2", name: "Gracia May ", username: "gracia.may", presence: "offline", mutual: 2 },
+  { id: "s3", name: "bobot chen", username: "bobot.chen", presence: "offline", mutual: 1 },
 ];
 
 const PRESENCE_LABEL: Record<Presence, string> = {
