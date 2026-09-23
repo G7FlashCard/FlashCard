@@ -21,10 +21,8 @@ import { colors, radius, spacing } from "../../screens/theme";
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
 
-// ---------------------------------------------------------------------------
 // Sample profile data. Nothing is saved yet, so edits reset when the app
-// closes. Your deck count and favorites are real (from the shared deck store).
-// ---------------------------------------------------------------------------
+// closes. The deck count and favorites are real (from the shared deck store).
 
 type Profile = {
   name: string;
@@ -53,7 +51,6 @@ type GridTab = "decks" | "saved" | "badges";
 const GRID_TABS: { key: GridTab; icon: IconName; iconActive: IconName; label: string }[] = [
   { key: "decks", icon: "grid-outline", iconActive: "grid", label: "My decks" },
   { key: "saved", icon: "bookmark-outline", iconActive: "bookmark", label: "Favorite decks" },
-  // { key: "badges", icon: "trophy-outline", iconActive: "trophy", label: "Badges" },
 ];
 
 type Badge = { key: string; label: string; icon: IconName; earned: boolean };
@@ -209,9 +206,6 @@ export default function ProfileScreen() {
                 <DeckTile key={deck.id} deck={deck} size={tileSize} onPress={() => openDeck(deck.id)} />
               ))
             ))}
-
-          {/* {gridTab === "badges" &&
-            badges.map((badge) => <BadgeTile key={badge.key} badge={badge} size={tileSize} />)} */}
         </View>
       </ScrollView>
 
@@ -341,7 +335,6 @@ function EditProfileModal({
   const [username, setUsername] = useState(profile.username);
   const [bio, setBio] = useState(profile.bio);
 
-  // Start from the current values every time the dialog opens.
   useEffect(() => {
     if (visible) {
       setName(profile.name);
@@ -433,7 +426,6 @@ function ActionSheet({
   const insets = useSafeAreaInsets();
 
   // Close first, then run the action. Showing an Alert while the sheet is
-  // still closing can silently fail on iOS.
   const choose = (item: SheetItem) => {
     onClose();
     setTimeout(item.onPress, 350);
@@ -702,12 +694,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.body,
   },
-  // badgeEarned: {
-  //   backgroundColor: colors.primaryTint,
-  // },
-  // badgeLocked: {
-  //   backgroundColor: "#F3F4F6",
-  // },
   gridEmpty: {
     width: "100%",
     alignItems: "center",
