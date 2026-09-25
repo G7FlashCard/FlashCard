@@ -11,12 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
-import {
-  DecksIllustration,
-  IllustrationProps,
-  LearnIllustration,
-  ProgressIllustration,
-} from './OnboardingIllustrations';
+import {  IllustrationProps, LearnIllustration } from './OnboardingIllustrations';
 import { colors, radius, spacing } from './theme';
 
 type Slide = {
@@ -30,20 +25,8 @@ const SLIDES: Slide[] = [
   {
     id: 'learn',
     title: 'Learn Smarter Everyday',
-    body: 'Create, study, take quizzes, and track your progress — anytime, anywhere.',
+    body: 'Create, study, take quizzes, and track your progress anytime, anywhere.',
     Illustration: LearnIllustration,
-  },
-  {
-    id: 'decks',
-    title: 'Build Decks in Seconds',
-    body: 'Add cards by hand, import a file, or let the AI helper draft them from a topic.',
-    Illustration: DecksIllustration,
-  },
-  {
-    id: 'progress',
-    title: 'Watch Your Progress Grow',
-    body: 'Take quizzes, keep your streak alive, and study alongside your friends.',
-    Illustration: ProgressIllustration,
   },
 ];
 
@@ -92,7 +75,6 @@ export default function OnboardingScreen({ onGetStarted }: Props) {
       />
 
       <View style={styles.footer}>
-        <Dots count={SLIDES.length} scrollX={scrollX} width={width} />
 
         <Pressable
           accessibilityRole="button"
